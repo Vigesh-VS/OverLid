@@ -20,6 +20,9 @@ export interface IslandTokens {
   pill: Shape;
   peek: { short: Shape; tall: Shape };
   expanded: { width: number; radius: number; ear: number; heights: Record<PanelId, number> };
+  countdown: Shape;
+  /** Header + beam + footer height added around the prompter text area. */
+  prompterChrome: number;
   spring: { stiffness: number; damping: number };
   hoverInMs: number;
   hoverOutMs: number;
@@ -62,6 +65,13 @@ export function readIslandTokens(): IslandTokens {
       radius: readNumber("--ol-expanded-radius", 32),
       ear: readNumber("--ol-expanded-ear", 18),
     },
+    countdown: {
+      width: readNumber("--ol-countdown-w", 180),
+      height: readNumber("--ol-peek-h-short", 52),
+      radius: peekRadius - 2,
+      ear: peekEar,
+    },
+    prompterChrome: readNumber("--ol-prompter-chrome", 100),
     spring: {
       stiffness: readNumber("--ol-spring-stiffness", 400),
       damping: readNumber("--ol-spring-damping", 30),

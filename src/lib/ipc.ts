@@ -77,7 +77,19 @@ export interface Settings {
     voiceThreshold: number;
     micDevice: string | null;
     captureHintSeen: boolean;
+    shortcuts: PrompterShortcuts;
   };
+}
+
+export interface PrompterShortcuts {
+  toggle: string;
+  playPause: string;
+  faster: string;
+  slower: string;
+  bigger: string;
+  smaller: string;
+  prevSection: string;
+  nextSection: string;
 }
 
 export interface MonitorInfo {
@@ -216,6 +228,26 @@ export interface HookChangeReport {
   status: HookStatus;
 }
 
+// ---------- Teleprompter ----------
+
+export interface Script {
+  id: string;
+  title: string;
+  body: string;
+  favorite: boolean;
+  updatedAt: string;
+}
+
+export type PrompterAction =
+  | "toggle"
+  | "playPause"
+  | "faster"
+  | "slower"
+  | "bigger"
+  | "smaller"
+  | "prevSection"
+  | "nextSection";
+
 // ---------- Commands ----------
 
 export const commands = {
@@ -245,6 +277,18 @@ export const commands = {
   codeConnect: () => invoke<HookChangeReport>("code_connect"),
   codeDisconnect: () => invoke<HookChangeReport>("code_disconnect"),
 
+  prompterSetActive: (active: boolean) => invoke<void>("prompter_set_active", { active }),
+  scriptsList: () => invoke<Script[]>("scripts_list"),
+  scriptCreate: (title?: string) => invoke<Script>("script_create", { title: title ?? null }),
+  scriptSave: (script: Script) => invoke<Script>("script_save", { script }),
+  scriptDelete: (id: string) => invoke<void>("script_delete", { id }),
+  scriptDuplicate: (id: string) => invoke<Script>("script_duplicate", { id }),
+  scriptImport: () => invoke<Script | null>("script_import"),
+  scriptExport: (id: string) => invoke<boolean>("script_export", { id }),
+  voiceStart: (device: string | null) => invoke<void>("voice_start", { device }),
+  voiceStop: () => invoke<void>("voice_stop"),
+  voiceDevices: () => invoke<string[]>("voice_devices"),
+
   mediaGet: () => invoke<MediaState | null>("media_get"),
   mediaPlayPause: () => invoke<void>("media_play_pause"),
   mediaNext: () => invoke<void>("media_next"),
@@ -269,6 +313,10 @@ export interface EventPayloads {
   "pomo://tick": PomoState;
   "code://usage": ProviderStatus[];
   "code://session": AgentSession[];
+  "prompter://command": PrompterAction;
+  "prompter://scripts": null;
+  "voice://level": number;
+  "voice://error": string;
 }
 
 export function on<K extends keyof EventPayloads>(

@@ -35,6 +35,10 @@
   --ol-peek-radius: 26px;
   --ol-peek-ear: 14px;
 
+  /* Prompter */
+  --ol-countdown-w: 180px;
+  --ol-prompter-chrome: 100px;
+
   /* Expanded island */
   --ol-expanded-w: 680px;
   /* Expanded height per panel (the island grows to fit each one) */

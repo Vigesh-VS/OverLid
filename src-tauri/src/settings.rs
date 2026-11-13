@@ -107,6 +107,34 @@ impl Default for Code {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
+pub struct Shortcuts {
+    pub toggle: String,
+    pub play_pause: String,
+    pub faster: String,
+    pub slower: String,
+    pub bigger: String,
+    pub smaller: String,
+    pub prev_section: String,
+    pub next_section: String,
+}
+
+impl Default for Shortcuts {
+    fn default() -> Self {
+        Self {
+            toggle: "Ctrl+Alt+P".into(),
+            play_pause: "Ctrl+Alt+Space".into(),
+            faster: "Ctrl+Alt+ArrowUp".into(),
+            slower: "Ctrl+Alt+ArrowDown".into(),
+            bigger: "Ctrl+Alt+Equal".into(),
+            smaller: "Ctrl+Alt+Minus".into(),
+            prev_section: "Ctrl+Alt+ArrowLeft".into(),
+            next_section: "Ctrl+Alt+ArrowRight".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Prompter {
     pub font_family: String,
     pub font_size: u32,
@@ -122,6 +150,7 @@ pub struct Prompter {
     pub voice_threshold: f64,
     pub mic_device: Option<String>,
     pub capture_hint_seen: bool,
+    pub shortcuts: Shortcuts,
 }
 
 impl Default for Prompter {
@@ -139,6 +168,7 @@ impl Default for Prompter {
             voice_threshold: 0.35,
             mic_device: None,
             capture_hint_seen: false,
+            shortcuts: Shortcuts::default(),
         }
     }
 }

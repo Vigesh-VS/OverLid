@@ -5,6 +5,7 @@ mod peek;
 mod pomodoro;
 mod settings;
 mod system;
+mod teleprompter;
 mod tray;
 mod window;
 
@@ -27,6 +28,9 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
     if old.code.port != new.code.port {
         codenotch::hook_server::restart(app);
     }
+    if old.prompter.shortcuts != new.prompter.shortcuts {
+        teleprompter::rebind(app);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -39,6 +43,8 @@ pub fn run() {
         )
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(teleprompter::plugin())
         .manage(window::HitState::default())
         .invoke_handler(tauri::generate_handler![
             window::set_hit_rect,
@@ -68,6 +74,17 @@ pub fn run() {
             codenotch::code_disconnect,
             codenotch::sessions::code_sessions,
             codenotch::sessions::code_open_folder,
+            teleprompter::prompter_set_active,
+            teleprompter::scripts::scripts_list,
+            teleprompter::scripts::script_create,
+            teleprompter::scripts::script_save,
+            teleprompter::scripts::script_delete,
+            teleprompter::scripts::script_duplicate,
+            teleprompter::scripts::script_import,
+            teleprompter::scripts::script_export,
+            teleprompter::voice::voice_start,
+            teleprompter::voice::voice_stop,
+            teleprompter::voice::voice_devices,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -85,6 +102,7 @@ pub fn run() {
             codenotch::sessions::start(handle);
             codenotch::hook_server::start(handle);
             codenotch::start(handle);
+            teleprompter::init(handle);
             Ok(())
         })
         .run(tauri::generate_context!());

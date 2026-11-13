@@ -4,12 +4,12 @@ import styles from "./ExpandedShell.module.css";
 import { CodePanel } from "./CodePanel";
 import { FocusPanel } from "./FocusPanel";
 import { MediaPanel } from "./MediaPanel";
+import { PrompterPanel } from "./PrompterPanel";
 import { StatsPanel } from "./StatsPanel";
 
 // Placeholder copy until each module lands (SPEC §12).
 const COMING: Partial<Record<PanelId, string>> = {
   home: "A summary of every module will show here.",
-  prompter: "The teleprompter arrives in Phase 6.",
 };
 
 export function ExpandedShell() {
@@ -37,6 +37,8 @@ export function ExpandedShell() {
       <section className={styles.body} aria-label={PANELS.find((p) => p.id === panel)?.label}>
         {panel === "media" ? (
           <MediaPanel />
+        ) : panel === "prompter" ? (
+          <PrompterPanel />
         ) : panel === "code" ? (
           <CodePanel />
         ) : panel === "focus" ? (

@@ -4,10 +4,13 @@ import { AnimatePresence, motion, useReducedMotion, type Transition } from "fram
 import { commands, inTauri } from "../lib/ipc";
 import type { PeekKind } from "../lib/ipc";
 import { useIsland, type PanelId } from "../stores/island";
+import { usePrompter } from "../stores/prompter";
+import { useSystem } from "../stores/system";
 import { readIslandTokens, type Shape } from "../styles/tokens";
 import { CompactBar } from "./compact/CompactBar";
 import { ExpandedShell } from "./panels/ExpandedShell";
 import { PeekView } from "./peek/PeekView";
+import { Countdown, PrompterView } from "./prompter/PrompterView";
 import styles from "./Island.module.css";
 
 /** Hovering a peek opens the panel it's about. */
@@ -37,14 +40,32 @@ export function Island() {
   const reduceMotion = useReducedMotion();
   const { mode, hovered, panel, peek, setMode, setPanel, setHovered, nextPeek, clearPeeks } =
     useIsland();
-  const expanded = mode === "expanded";
+  const prompter = usePrompter((s) => s.status);
+  const prompterPrefs = useSystem((s) => s.settings?.prompter);
+  const presenting = prompter !== "idle";
+  const expanded = mode === "expanded" && !presenting;
 
-  let view: "compact" | "peek" | "expanded" = "compact";
+  let view: "compact" | "peek" | "expanded" | "countdown" | "prompter" = "compact";
   let shape: Shape = tokens.pill;
   let content: ReactNode = <CompactBar />;
   let key = "compact";
 
-  if (expanded) {
+  if (prompter === "presenting") {
+    view = "prompter";
+    shape = {
+      width: (prompterPrefs?.width ?? 560) + 40,
+      height: (prompterPrefs?.height ?? 200) + tokens.prompterChrome,
+      radius: tokens.expanded.radius,
+      ear: tokens.expanded.ear,
+    };
+    content = <PrompterView />;
+    key = "prompter";
+  } else if (prompter === "countdown") {
+    view = "countdown";
+    shape = tokens.countdown;
+    content = <Countdown />;
+    key = "countdown";
+  } else if (expanded) {
     view = "expanded";
     shape = { ...tokens.expanded, height: tokens.expanded.heights[panel] };
     content = <ExpandedShell />;
@@ -62,6 +83,7 @@ export function Island() {
 
   // Hover intent: expand after a short hover, collapse after the cursor has been gone a while.
   useEffect(() => {
+    if (presenting) return;
     if (hovered && !expanded) {
       const id = window.setTimeout(() => {
         const current = useIsland.getState().peek;
@@ -75,7 +97,12 @@ export function Island() {
       const id = window.setTimeout(() => setMode("collapsed"), tokens.hoverOutMs);
       return () => window.clearTimeout(id);
     }
-  }, [hovered, expanded, setMode, setPanel, tokens]);
+  }, [hovered, expanded, presenting, setMode, setPanel, tokens]);
+
+  // Starting the prompter closes the expanded island.
+  useEffect(() => {
+    if (presenting) setMode("collapsed");
+  }, [presenting, setMode]);
 
   // Opening the island supersedes any pending peeks.
   useEffect(() => {
@@ -84,11 +111,12 @@ export function Island() {
 
   // Each peek stays for a few seconds, then the next queued one shows.
   useEffect(() => {
-    if (!peek || expanded) return;
+    // While presenting, peeks wait in the queue until the prompter stops.
+    if (!peek || expanded || presenting) return;
     const ms = peek.kind === "agentWaiting" ? 4500 : 3000;
     const id = window.setTimeout(nextPeek, ms);
     return () => window.clearTimeout(id);
-  }, [peek, expanded, nextPeek]);
+  }, [peek, expanded, presenting, nextPeek]);
 
   // Report the target shape up front, so the cursor stays "inside" while the island grows.
   useEffect(() => {
