@@ -1,6 +1,7 @@
 // Subscribes the island window to every Rust event once and feeds the stores.
 
 import { commands, inTauri, on } from "../lib/ipc";
+import { useAmbientColor } from "../components/AmbientLayer";
 import { chime } from "../lib/sound";
 import { useCode } from "./code";
 import { useIsland } from "./island";
@@ -64,6 +65,7 @@ export function startBridge(): void {
     voiceLevel.at = performance.now();
   });
   void on("voice://status", (status) => usePrompter.getState().setVoiceStatus(status));
+  void on("ambient://color", (hex) => useAmbientColor.getState().set(hex));
 
   commands.mediaGet().then((m) => useMedia.getState().setMedia(m), ignore);
   commands.islandFlags().then(island.setFlags, ignore);

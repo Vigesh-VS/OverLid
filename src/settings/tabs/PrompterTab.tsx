@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
-import { commands, on, type PrompterShortcuts, type TimingMode, type VoiceStatus } from "../../lib/ipc";
+import { AmbientLayer, safeOpacity } from "../../components/AmbientLayer";
+import {
+  commands,
+  on,
+  type AmbientSettings,
+  type AmbientSource,
+  type AmbientSpeed,
+  type PrompterShortcuts,
+  type TimingMode,
+  type VoiceStatus,
+} from "../../lib/ipc";
 import { Choice, Group, Row, Select, Slider, TextField, Toggle } from "../controls";
 import styles from "../Settings.module.css";
 import { section, useSettingsStore } from "../useSettings";
@@ -40,6 +50,19 @@ const SHORTCUT_LABELS: Record<keyof PrompterShortcuts, string> = {
 };
 
 const CALIBRATE_MS = 3000;
+
+const AMBIENT_SOURCES: ReadonlyArray<{ value: AmbientSource; label: string }> = [
+  { value: "screen", label: "Live screen colour" },
+  { value: "wallpaper", label: "Wallpaper" },
+  { value: "album", label: "Album art" },
+  { value: "custom", label: "Custom" },
+];
+
+const AMBIENT_SPEEDS: ReadonlyArray<{ value: AmbientSpeed; label: string }> = [
+  { value: "static", label: "Still" },
+  { value: "slow", label: "Slow" },
+  { value: "medium", label: "Medium" },
+];
 
 const toDb = (level: number) => Math.round(level * 60 - 60);
 
@@ -170,6 +193,8 @@ export function PrompterTab() {
         />
       </Group>
 
+      <AmbientGroup ambient={p.ambient} textColor={p.color} onChange={(ambient) => set({ ambient })} />
+
       <Group
         title="Shortcuts"
         note="Work from any app. Only the start/stop shortcut is active when you're not presenting. Use names like Ctrl+Alt+P, Ctrl+Shift+ArrowUp or Alt+Equal."
@@ -277,5 +302,84 @@ function MicMeter({
         {active ? "Stop" : "Test"}
       </button>
     </Row>
+  );
+}
+
+function AmbientGroup({
+  ambient,
+  textColor,
+  onChange,
+}: {
+  ambient: AmbientSettings;
+  textColor: string;
+  onChange: (a: AmbientSettings) => void;
+}) {
+  const set = (patch: Partial<AmbientSettings>) => onChange({ ...ambient, ...patch });
+  const previewColors =
+    ambient.source === "custom" ? ambient.colors : ambient.source === "screen" ? ["#3b5bdb", "#7048e8"] : ["#c2410c"];
+  const effective = Math.round(safeOpacity(ambient.intensity, previewColors, textColor) * 100);
+
+  return (
+    <Group
+      title="Ambient background"
+      note="An optional, very subtle glow behind the text while you present. The text itself never changes, and its contrast always stays at 7:1 or better."
+    >
+      <Toggle label="Show ambient glow" checked={ambient.enabled} onChange={(v) => set({ enabled: v })} />
+      <Choice
+        label="Colour from"
+        hint={
+          ambient.source === "screen"
+            ? "Sampled about once a second from a tiny copy of your screen, only while presenting. Kept in memory, never saved or sent."
+            : ambient.source === "album"
+              ? "Follows the now-playing album art."
+              : undefined
+        }
+        value={ambient.source}
+        options={AMBIENT_SOURCES}
+        onChange={(v) => set({ source: v })}
+      />
+      {ambient.source === "custom" && (
+        <Row label="Colours" hint="Up to three.">
+          <div className={styles.swatches}>
+            {ambient.colors.map((c, i) => (
+              <input
+                key={i}
+                type="color"
+                aria-label={`Colour ${i + 1}`}
+                value={c}
+                onChange={(e) => set({ colors: ambient.colors.map((x, j) => (j === i ? e.target.value.toUpperCase() : x)) })}
+              />
+            ))}
+            {ambient.colors.length < 3 && (
+              <button type="button" className={styles.button} onClick={() => set({ colors: [...ambient.colors, "#7048E8"] })}>
+                Add
+              </button>
+            )}
+            {ambient.colors.length > 1 && (
+              <button type="button" className={styles.button} onClick={() => set({ colors: ambient.colors.slice(0, -1) })}>
+                Remove
+              </button>
+            )}
+          </div>
+        </Row>
+      )}
+      <Slider
+        label="Intensity"
+        hint={effective < Math.round(ambient.intensity * 100) ? `Capped at ${effective} % to keep the text readable.` : undefined}
+        value={Math.round(ambient.intensity * 100)}
+        min={5}
+        max={50}
+        format={(v) => `${v} %`}
+        onChange={(v) => set({ intensity: v / 100 })}
+      />
+      <Slider label="Blur" value={ambient.blur} min={0} max={160} step={5} format={(v) => `${v} px`} onChange={(v) => set({ blur: v })} />
+      <Choice label="Animation" value={ambient.speed} options={AMBIENT_SPEEDS} onChange={(v) => set({ speed: v })} />
+      <Row label="Preview" hint={ambient.source === "screen" ? "Preview uses sample colours; live colour is only read while presenting." : undefined}>
+        <div className={styles.ambientPreview}>
+          <AmbientLayer settings={{ ...ambient, enabled: true }} colors={previewColors} textColor={textColor} />
+          <span style={{ color: textColor }}>Your script reads like this.</span>
+        </div>
+      </Row>
+    </Group>
   );
 }

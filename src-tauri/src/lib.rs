@@ -1,3 +1,4 @@
+mod ambient;
 mod app_windows;
 mod codenotch;
 mod foreground;
@@ -107,6 +108,7 @@ pub fn run() {
             codenotch::sessions::code_dismiss,
             quick_action::quick_action_run,
             quick_action::app_icon,
+            ambient::ambient_wallpaper,
             teleprompter::prompter_set_active,
             teleprompter::prompter_start,
             teleprompter::scripts::scripts_list,
@@ -133,6 +135,7 @@ pub fn run() {
             system::start(handle);
             fullscreen::start(handle);
             foreground::start(handle);
+            ambient::start(handle);
             pomodoro::start(handle);
             codenotch::sessions::start(handle);
             codenotch::hook_server::start(handle);

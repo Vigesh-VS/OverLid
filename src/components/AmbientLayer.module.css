@@ -1,0 +1,57 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: opacity 1.5s ease;
+}
+
+.blob0,
+.blob1,
+.blob2 {
+  position: absolute;
+  width: 70%;
+  height: 120%;
+  border-radius: 50%;
+  filter: blur(var(--blur));
+  /* ~1.5 s colour transitions as the source changes. */
+  transition: background-color 1.5s ease;
+  animation: drift var(--duration) ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.blob0 {
+  left: -15%;
+  top: -30%;
+}
+
+.blob1 {
+  right: -15%;
+  top: 10%;
+  animation-delay: calc(var(--duration) / -3);
+}
+
+.blob2 {
+  left: 20%;
+  bottom: -60%;
+  animation-delay: calc(var(--duration) / -1.5);
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(8%, 6%, 0) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob0,
+  .blob1,
+  .blob2 {
+    animation: none;
+  }
+}

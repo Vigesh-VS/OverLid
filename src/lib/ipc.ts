@@ -99,6 +99,7 @@ export interface Settings {
     micDevice: string | null;
     captureHintSeen: boolean;
     shortcuts: PrompterShortcuts;
+    ambient: AmbientSettings;
   };
   quickAction: QuickAction;
 }
@@ -128,6 +129,17 @@ export interface RunningApp {
 }
 
 export type TimingMode = "speed" | "lines" | "duration";
+export type AmbientSource = "screen" | "wallpaper" | "album" | "custom";
+export type AmbientSpeed = "static" | "slow" | "medium";
+
+export interface AmbientSettings {
+  enabled: boolean;
+  source: AmbientSource;
+  colors: string[];
+  intensity: number;
+  blur: number;
+  speed: AmbientSpeed;
+}
 
 export interface PrompterShortcuts {
   toggle: string;
@@ -343,6 +355,7 @@ export const commands = {
   openLink: (kind: "repo" | "star" | "bug" | "feature" | "discussions" | "releases" | "sponsor") =>
     invoke<void>("open_link", { kind }),
   appVersion: () => invoke<string>("app_version"),
+  ambientWallpaper: () => invoke<string | null>("ambient_wallpaper"),
   pickExe: () => invoke<string | null>("pick_exe"),
   pickFolder: () => invoke<string | null>("pick_folder"),
 
@@ -422,6 +435,8 @@ export interface EventPayloads {
   "prompter://start": string;
   "voice://level": VoiceLevel;
   "voice://status": VoiceStatus;
+  /** Live screen colour while presenting (hex). */
+  "ambient://color": string;
 }
 
 export function on<K extends keyof EventPayloads>(

@@ -225,6 +225,53 @@ pub enum TimingMode {
     Duration,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AmbientSource {
+    /// Dominant colour of what's on screen, sampled ~1/s while presenting.
+    #[default]
+    Screen,
+    Wallpaper,
+    Album,
+    Custom,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AmbientSpeed {
+    Static,
+    #[default]
+    Slow,
+    Medium,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Ambient {
+    pub enabled: bool,
+    pub source: AmbientSource,
+    /// 1–3 hex colours for the custom source.
+    pub colors: Vec<String>,
+    /// 0–1 opacity of the glow (text contrast is always kept ≥ 7:1).
+    pub intensity: f64,
+    /// Blur radius in px.
+    pub blur: u32,
+    pub speed: AmbientSpeed,
+}
+
+impl Default for Ambient {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            source: AmbientSource::Screen,
+            colors: vec!["#4F8CFF".into()],
+            intensity: 0.2,
+            blur: 60,
+            speed: AmbientSpeed::Slow,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Prompter {
@@ -248,6 +295,7 @@ pub struct Prompter {
     pub mic_device: Option<String>,
     pub capture_hint_seen: bool,
     pub shortcuts: Shortcuts,
+    pub ambient: Ambient,
 }
 
 impl Default for Prompter {
@@ -270,6 +318,7 @@ impl Default for Prompter {
             mic_device: None,
             capture_hint_seen: false,
             shortcuts: Shortcuts::default(),
+            ambient: Ambient::default(),
         }
     }
 }
@@ -363,6 +412,14 @@ impl Settings {
         p.voice_threshold = p.voice_threshold.clamp(0.0, 1.0);
         p.lines_per_minute = p.lines_per_minute.clamp(2.0, 200.0);
         p.duration_min = p.duration_min.clamp(0.5, 180.0);
+        let a = &mut p.ambient;
+        a.intensity = a.intensity.clamp(0.0, 0.5);
+        a.blur = a.blur.clamp(0, 160);
+        a.colors.retain(|c| c.len() == 7 && c.starts_with('#') && c[1..].chars().all(|ch| ch.is_ascii_hexdigit()));
+        a.colors.truncate(3);
+        if a.colors.is_empty() {
+            a.colors.push("#4F8CFF".into());
+        }
         if p.font_family.trim().is_empty() {
             p.font_family = Prompter::default().font_family;
         }

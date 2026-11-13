@@ -1,5 +1,7 @@
 .prompter {
   position: relative;
+  /* The ambient glow sits at z-index -1 inside this stacking context. */
+  isolation: isolate;
   box-sizing: border-box;
   height: 100%;
   padding: 8px 20px 10px;

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 
+import { AmbientLayer, useAmbientColors } from "../../components/AmbientLayer";
 import { LockIcon, MicIcon, PauseIcon, PlayIcon, StopIcon } from "../../components/icons";
 import { commands, run } from "../../lib/ipc";
 import { leadSession, useCode } from "../../stores/code";
@@ -205,6 +206,7 @@ export function PrompterView() {
 
   const protectedNow = capture !== "never";
   const color = prefs?.color ?? "#FFFFFF";
+  const ambientColors = useAmbientColors(prefs?.ambient, true);
   const eyeLine = Math.round(height * EYE_LINE);
   const textStyle: CSSProperties = {
     fontFamily: `"${prefs?.fontFamily ?? "Segoe UI Variable Display"}", var(--ol-font)`,
@@ -229,6 +231,7 @@ export function PrompterView() {
 
   return (
     <div className={styles.prompter}>
+      {prefs?.ambient && <AmbientLayer settings={prefs.ambient} colors={ambientColors} textColor={color} />}
       <div className={styles.header}>
         <span className={protectedNow ? styles.protected : styles.exposed}>
           <LockIcon size={12} />
