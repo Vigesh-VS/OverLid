@@ -115,3 +115,11 @@ pub fn prompter_set_active(app: AppHandle, active: bool) {
     window::set_prompter(&app, active);
     rebind(&app);
 }
+
+/// Start presenting a script from any window (e.g. after importing in Settings).
+#[tauri::command]
+pub fn prompter_start(app: AppHandle, script_id: String) {
+    if let Err(e) = app.emit(crate::quick_action::PROMPTER_START_EVENT, script_id) {
+        log::warn!("couldn't start the prompter: {e}");
+    }
+}

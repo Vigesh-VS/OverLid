@@ -47,9 +47,16 @@ export function startBridge(): void {
   void on("prompter://command", (action) => usePrompter.getState().handle(action));
   void on("prompter://scripts", () => loadScripts());
   void on("prompter://start", (scriptId) => {
-    const p = usePrompter.getState();
-    const script = p.scripts.find((x) => x.id === scriptId);
-    p.start(script);
+    const known = usePrompter.getState().scripts.find((x) => x.id === scriptId);
+    if (known || !scriptId) {
+      usePrompter.getState().start(known);
+      return;
+    }
+    // A just-imported script: reload the list first.
+    commands.scriptsList().then((list) => {
+      usePrompter.getState().setScripts(list);
+      usePrompter.getState().start(list.find((x) => x.id === scriptId));
+    }, ignore);
   });
   void on("voice://level", (v) => {
     if (v.owner !== "prompter") return;

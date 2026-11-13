@@ -168,29 +168,6 @@ pub fn script_duplicate(app: AppHandle, id: String) -> Result<Script, String> {
     Ok(copy)
 }
 
-/// Pick a .txt / .md file and turn it into a new script.
-#[tauri::command]
-pub async fn script_import(app: AppHandle) -> Result<Option<Script>, String> {
-    let Some(picked) = app
-        .dialog()
-        .file()
-        .set_title("Import script")
-        .add_filter("Text or Markdown", &["txt", "md", "markdown"])
-        .blocking_pick_file()
-    else {
-        return Ok(None);
-    };
-    let path = picked.into_path().map_err(|e| err(e.into()))?;
-    let body = fs::read_to_string(&path).map_err(|e| err(e.into()))?;
-    let title = path
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "Imported script".into());
-    let script = create(&app, title, body.replace("\r\n", "\n")).map_err(err)?;
-    notify(&app);
-    Ok(Some(script))
-}
-
 /// Save a script's text to a .md / .txt file the user picks.
 #[tauri::command]
 pub async fn script_export(app: AppHandle, id: String) -> Result<bool, String> {

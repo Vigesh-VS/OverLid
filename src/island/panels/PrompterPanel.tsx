@@ -1,3 +1,7 @@
+import { useRef, useState, type DragEvent } from "react";
+
+import { ImportPreview } from "../../components/ImportPreview";
+import { IMPORT_ACCEPT, ImportError, droppedFile, importFile, type ImportedScript } from "../../lib/importScript";
 import { commands, run } from "../../lib/ipc";
 import { usePrompter } from "../../stores/prompter";
 import { useSystem } from "../../stores/system";
@@ -11,20 +15,82 @@ export function PrompterPanel() {
   const settings = useSystem((s) => s.settings);
   const voice = settings?.prompter.voice ?? false;
   const toggleKey = settings?.prompter.shortcuts.toggle ?? "Ctrl+Alt+P";
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [imported, setImported] = useState<ImportedScript | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const setVoice = (on: boolean) => {
     if (!settings) return;
     run(commands.settingsSet({ ...settings, prompter: { ...settings.prompter, voice: on } }), "settings_set");
   };
 
+  const load = (file: File | null) => {
+    if (!file) return;
+    setImportError(null);
+    setImporting(true);
+    importFile(file)
+      .then(setImported, (e: unknown) => setImportError(e instanceof ImportError ? e.message : "That file couldn't be imported."))
+      .finally(() => setImporting(false));
+  };
+
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    load(droppedFile(e));
+  };
+
+  if (imported) {
+    return (
+      <ImportPreview
+        imported={imported}
+        settings={settings}
+        onCancel={() => setImported(null)}
+        onSaved={(script) => {
+          setImported(null);
+          select(script.id);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className={styles.panel}>
+    <div
+      className={dragOver ? `${styles.panel} ${styles.dragOver}` : styles.panel}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={onDrop}
+    >
       <div className={styles.list}>
-        <span className={styles.heading}>Scripts</span>
+        <div className={styles.listHead}>
+          <span className={styles.heading}>Scripts</span>
+          <button type="button" className={styles.importButton} disabled={importing} onClick={() => fileInput.current?.click()}>
+            {importing ? "Importing…" : "Import file"}
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept={IMPORT_ACCEPT}
+            hidden
+            onChange={(e) => {
+              load(e.target.files?.[0] ?? null);
+              e.target.value = "";
+            }}
+          />
+        </div>
+        {importError && (
+          <p className={styles.importError} role="alert">
+            {importError}
+          </p>
+        )}
         {scripts.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyTitle}>No scripts yet</span>
-            <span className={styles.emptyHint}>Write one in Settings, or import a .txt or .md file.</span>
+            <span className={styles.emptyHint}>Drop a .txt, .md, .docx or .pdf here, or write one in Settings.</span>
             <button
               type="button"
               className={styles.openSettings}
@@ -54,6 +120,7 @@ export function PrompterPanel() {
             ))}
           </div>
         )}
+        {dragOver && <div className={styles.dropHint}>Drop to import</div>}
       </div>
 
       <div className={styles.side}>

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ImportPreview } from "../../components/ImportPreview";
+import { IMPORT_ACCEPT, ImportError, droppedFile, importFile, type ImportedScript } from "../../lib/importScript";
 import { commands, on, type Script } from "../../lib/ipc";
 import styles from "../Settings.module.css";
+import { useSettingsStore } from "../useSettings";
 
 const AUTOSAVE_MS = 600;
 
@@ -13,6 +16,10 @@ export function ScriptsTab() {
   const [saved, setSaved] = useState<"saved" | "saving" | "error">("saved");
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [imported, setImported] = useState<ImportedScript | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const settings = useSettingsStore((s) => s.settings);
   const dirty = useRef<Script | null>(null);
 
   const reload = useCallback(() => {
@@ -78,9 +85,13 @@ export function ScriptsTab() {
     }, (e: unknown) => setError(String(e)));
   };
 
-  const importFile = () => {
+  const loadFile = (file: File | null) => {
+    if (!file) return;
     flush();
-    commands.scriptImport().then((s) => s && setSelectedId(s.id), (e: unknown) => setError(String(e)));
+    setError(null);
+    importFile(file).then(setImported, (e: unknown) =>
+      setError(e instanceof ImportError ? e.message : "That file couldn't be imported."),
+    );
   };
 
   const duplicate = () => {
@@ -110,7 +121,21 @@ export function ScriptsTab() {
   const words = draft ? draft.body.split(/\s+/).filter(Boolean).length : 0;
 
   return (
-    <div className={styles.scripts}>
+    <div
+      className={dragOver ? `${styles.scripts} ${styles.dropping}` : styles.scripts}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) setDragOver(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        loadFile(droppedFile(e));
+      }}
+    >
       <aside className={styles.scriptList}>
         <div className={styles.scriptTools}>
           <input
@@ -125,9 +150,19 @@ export function ScriptsTab() {
             <button type="button" className={styles.primaryButton} onClick={create}>
               New
             </button>
-            <button type="button" className={styles.button} onClick={importFile}>
+            <button type="button" className={styles.button} onClick={() => fileInput.current?.click()}>
               Import
             </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept={IMPORT_ACCEPT}
+              hidden
+              onChange={(e) => {
+                loadFile(e.target.files?.[0] ?? null);
+                e.target.value = "";
+              }}
+            />
           </div>
         </div>
         <div className={styles.scriptItems}>
@@ -155,7 +190,18 @@ export function ScriptsTab() {
 
       <section className={styles.editor}>
         {error && <p className={styles.error}>{error}</p>}
-        {draft ? (
+        {imported ? (
+          <ImportPreview
+            imported={imported}
+            settings={settings}
+            onCancel={() => setImported(null)}
+            onSaved={(script) => {
+              setImported(null);
+              setSelectedId(script.id);
+              reload();
+            }}
+          />
+        ) : draft ? (
           <>
             <div className={styles.editorBar}>
               <input
@@ -207,7 +253,7 @@ export function ScriptsTab() {
           </>
         ) : (
           <div className={styles.emptyEditor}>
-            <p>Pick a script on the left, or start a new one.</p>
+            <p>Pick a script on the left, start a new one, or drop a .txt, .md, .docx or .pdf here.</p>
             <button type="button" className={styles.primaryButton} onClick={create}>
               New script
             </button>

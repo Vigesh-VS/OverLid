@@ -1,0 +1,127 @@
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ol-space-3);
+  padding: var(--ol-space-5) var(--ol-space-6);
+  border-radius: var(--ol-card-radius);
+  background: var(--ol-surface);
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ol-space-1);
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+}
+
+.field input:not([type="range"]) {
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 var(--ol-space-3);
+  border: 1px solid var(--ol-track);
+  border-radius: 8px;
+  background: var(--ol-black);
+  color: var(--ol-text);
+  font: inherit;
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+}
+
+.field input[type="range"] {
+  accent-color: var(--ol-text);
+}
+
+.summary,
+.note,
+.error {
+  margin: 0;
+  font-size: var(--ol-fs-xs);
+}
+
+.summary {
+  color: var(--ol-text-2);
+}
+
+.excerpt {
+  margin: 0;
+  max-height: 3.6em;
+  overflow: hidden;
+  color: var(--ol-text-3);
+  font-size: var(--ol-fs-sm);
+  line-height: 1.2;
+}
+
+.note {
+  color: var(--ol-amber);
+}
+
+.error {
+  color: var(--ol-red);
+}
+
+.mode {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--ol-black);
+  align-self: flex-start;
+}
+
+.on,
+.off {
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  font-size: var(--ol-fs-sm);
+}
+
+.on {
+  background: var(--ol-surface-raised);
+  font-weight: 600;
+}
+
+.off {
+  background: transparent;
+  color: var(--ol-text-2);
+}
+
+.actions {
+  display: flex;
+  gap: var(--ol-space-2);
+}
+
+.primary,
+.secondary {
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font-size: var(--ol-fs-sm);
+  font-weight: 600;
+}
+
+.primary {
+  background: var(--ol-text);
+  color: var(--ol-black);
+}
+
+.secondary {
+  background: var(--ol-surface-raised);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.on:focus-visible,
+.off:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 2px;
+}

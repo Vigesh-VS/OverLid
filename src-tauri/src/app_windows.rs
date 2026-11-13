@@ -29,6 +29,8 @@ pub fn open_settings(app: &AppHandle) {
     .min_inner_size(760.0, 520.0)
     .center()
     .focused(true)
+    // Let the page receive HTML5 file drops (script import).
+    .disable_drag_drop_handler()
     .build();
     if let Err(e) = built {
         log::error!("couldn't open settings: {e}");

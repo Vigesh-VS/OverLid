@@ -691,3 +691,7 @@
   background: var(--ol-surface-raised);
   color: var(--ol-text);
 }
+
+.dropping {
+  box-shadow: inset 0 0 0 2px var(--ol-text-3);
+}
