@@ -1,6 +1,7 @@
 mod fullscreen;
 mod media;
 mod peek;
+mod pomodoro;
 mod settings;
 mod system;
 mod tray;
@@ -15,6 +16,9 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
     }
     if old.general.hide_from_capture != new.general.hide_from_capture {
         window::apply_protection(app);
+    }
+    if old.focus != new.focus {
+        pomodoro::on_config_changed(app);
     }
 }
 
@@ -44,6 +48,12 @@ pub fn run() {
             system::system_get,
             system::system_keys,
             system::system_set_stats_active,
+            pomodoro::pomo_get,
+            pomodoro::pomo_start,
+            pomodoro::pomo_pause,
+            pomodoro::pomo_skip,
+            pomodoro::pomo_reset,
+            pomodoro::pomo_history,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -57,6 +67,7 @@ pub fn run() {
             media::start(handle);
             system::start(handle);
             fullscreen::start(handle);
+            pomodoro::start(handle);
             Ok(())
         })
         .run(tauri::generate_context!());

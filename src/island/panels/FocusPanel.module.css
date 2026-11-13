@@ -1,0 +1,149 @@
+.panel {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 12px;
+}
+
+.dial {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  flex-shrink: 0;
+}
+
+.dialText {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.time {
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.phase {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-sm);
+  font-weight: 500;
+}
+
+.side {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roundTitle {
+  font-size: var(--ol-fs-lg);
+  font-weight: 600;
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dot,
+.dotNow,
+.dotDone {
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ol-track);
+}
+
+.dotNow {
+  background: var(--ol-text-3);
+}
+
+.dotDone {
+  background: var(--ol-text);
+}
+
+.next {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-sm);
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.primary,
+.secondary {
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  font-size: var(--ol-fs-md);
+}
+
+.primary {
+  padding: 0 22px;
+  background: var(--ol-text);
+  color: var(--ol-black);
+  font-weight: 600;
+}
+
+.secondary {
+  padding: 0 18px;
+  background: var(--ol-surface-raised);
+  font-weight: 500;
+}
+
+.secondary:hover {
+  background: var(--ol-track);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 2px;
+}
+
+.today {
+  display: flex;
+  gap: 24px;
+}
+
+.today div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.today strong {
+  font-size: var(--ol-fs-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.today span {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+}
+
+.loading {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-md);
+}

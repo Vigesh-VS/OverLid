@@ -2,12 +2,32 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
 
 import { commands, inTauri } from "../lib/ipc";
-import { useIsland } from "../stores/island";
+import type { PeekKind } from "../lib/ipc";
+import { useIsland, type PanelId } from "../stores/island";
 import { readIslandTokens, type Shape } from "../styles/tokens";
 import { CompactBar } from "./compact/CompactBar";
 import { ExpandedShell } from "./panels/ExpandedShell";
 import { PeekView } from "./peek/PeekView";
 import styles from "./Island.module.css";
+
+/** Hovering a peek opens the panel it's about. */
+function panelForPeek(kind: PeekKind): PanelId | null {
+  switch (kind) {
+    case "agentDone":
+    case "agentWaiting":
+    case "usage":
+    case "quotaBack":
+      return "code";
+    case "focusDone":
+      return "focus";
+    case "charging":
+    case "onBattery":
+    case "lowBattery":
+      return "stats";
+    default:
+      return null;
+  }
+}
 
 const fadeOut: Transition = { duration: 0.08 };
 const fadeIn: Transition = { duration: 0.16, delay: 0.08 };
@@ -15,7 +35,8 @@ const fadeIn: Transition = { duration: 0.16, delay: 0.08 };
 export function Island() {
   const [tokens] = useState(readIslandTokens);
   const reduceMotion = useReducedMotion();
-  const { mode, hovered, panel, peek, setMode, setHovered, nextPeek, clearPeeks } = useIsland();
+  const { mode, hovered, panel, peek, setMode, setPanel, setHovered, nextPeek, clearPeeks } =
+    useIsland();
   const expanded = mode === "expanded";
 
   let view: "compact" | "peek" | "expanded" = "compact";
@@ -42,14 +63,19 @@ export function Island() {
   // Hover intent: expand after a short hover, collapse after the cursor has been gone a while.
   useEffect(() => {
     if (hovered && !expanded) {
-      const id = window.setTimeout(() => setMode("expanded"), tokens.hoverInMs);
+      const id = window.setTimeout(() => {
+        const current = useIsland.getState().peek;
+        const target = current && panelForPeek(current.kind);
+        if (target) setPanel(target);
+        setMode("expanded");
+      }, tokens.hoverInMs);
       return () => window.clearTimeout(id);
     }
     if (!hovered && expanded) {
       const id = window.setTimeout(() => setMode("collapsed"), tokens.hoverOutMs);
       return () => window.clearTimeout(id);
     }
-  }, [hovered, expanded, setMode, tokens]);
+  }, [hovered, expanded, setMode, setPanel, tokens]);
 
   // Opening the island supersedes any pending peeks.
   useEffect(() => {

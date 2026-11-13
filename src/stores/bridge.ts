@@ -4,6 +4,7 @@ import { commands, inTauri, on } from "../lib/ipc";
 import { chime } from "../lib/sound";
 import { useIsland } from "./island";
 import { useMedia } from "./media";
+import { usePomodoro } from "./pomodoro";
 import { useSystem } from "./system";
 
 let started = false;
@@ -29,9 +30,11 @@ export function startBridge(): void {
   void on("settings://changed", (settings) => system.setSettings(settings));
   void on("system://tick", (tick) => system.setTick(tick));
   void on("system://keys", (keys) => system.setKeys(keys));
+  void on("pomo://tick", (state) => usePomodoro.getState().setState(state));
 
   commands.mediaGet().then((m) => useMedia.getState().setMedia(m), ignore);
   commands.islandFlags().then(island.setFlags, ignore);
   commands.settingsGet().then(system.setSettings, ignore);
   commands.systemGet().then(system.setTick, ignore);
+  commands.pomoGet().then((p) => p && usePomodoro.getState().setState(p), ignore);
 }

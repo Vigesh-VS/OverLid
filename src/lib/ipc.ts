@@ -144,6 +144,25 @@ export interface Peek {
   sound: boolean;
 }
 
+// ---------- Pomodoro ----------
+
+export type PomoPhase = "focus" | "shortBreak" | "longBreak";
+
+export interface DayStats {
+  sessions: number;
+  minutes: number;
+}
+
+export interface PomoState {
+  phase: PomoPhase;
+  running: boolean;
+  remainingMs: number;
+  totalMs: number;
+  round: number;
+  roundsPerCycle: number;
+  today: DayStats;
+}
+
 // ---------- Commands ----------
 
 export const commands = {
@@ -157,6 +176,13 @@ export const commands = {
   systemGet: () => invoke<SystemTick>("system_get"),
   systemKeys: () => invoke<LockKeys>("system_keys"),
   systemSetStatsActive: (active: boolean) => invoke<void>("system_set_stats_active", { active }),
+
+  pomoGet: () => invoke<PomoState | null>("pomo_get"),
+  pomoStart: () => invoke<void>("pomo_start"),
+  pomoPause: () => invoke<void>("pomo_pause"),
+  pomoSkip: () => invoke<void>("pomo_skip"),
+  pomoReset: () => invoke<void>("pomo_reset"),
+  pomoHistory: () => invoke<Record<string, DayStats>>("pomo_history"),
 
   mediaGet: () => invoke<MediaState | null>("media_get"),
   mediaPlayPause: () => invoke<void>("media_play_pause"),
@@ -179,6 +205,7 @@ export interface EventPayloads {
   "system://tick": SystemTick;
   "system://keys": LockKeys;
   "fullscreen://changed": boolean;
+  "pomo://tick": PomoState;
 }
 
 export function on<K extends keyof EventPayloads>(

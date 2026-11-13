@@ -1,6 +1,7 @@
 import { PANELS, useIsland, type PanelId } from "../../stores/island";
 import { Clock } from "../compact/Clock";
 import styles from "./ExpandedShell.module.css";
+import { FocusPanel } from "./FocusPanel";
 import { MediaPanel } from "./MediaPanel";
 import { StatsPanel } from "./StatsPanel";
 
@@ -9,7 +10,6 @@ const COMING: Partial<Record<PanelId, string>> = {
   home: "A summary of every module will show here.",
   code: "Claude Code usage and sessions arrive in Phases 4 and 5.",
   prompter: "The teleprompter arrives in Phase 6.",
-  focus: "The Pomodoro timer arrives in Phase 3.",
 };
 
 export function ExpandedShell() {
@@ -37,6 +37,8 @@ export function ExpandedShell() {
       <section className={styles.body} aria-label={PANELS.find((p) => p.id === panel)?.label}>
         {panel === "media" ? (
           <MediaPanel />
+        ) : panel === "focus" ? (
+          <FocusPanel />
         ) : panel === "stats" ? (
           <StatsPanel />
         ) : (

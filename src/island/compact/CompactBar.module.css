@@ -80,3 +80,19 @@
     transform: scaleY(0.7);
   }
 }
+
+.pomo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pomoTime {
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.paused {
+  color: var(--ol-text-2);
+}
