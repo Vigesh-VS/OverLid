@@ -16,7 +16,7 @@ Overlid sits at the top of your screen (centre, or flush in a corner), stays out
 - **Media**: what's playing in Spotify, a browser or any app that uses Windows media controls. Album art, play/pause, skip, seek, and an accent colour taken from the cover.
 - **System**: CPU, memory, battery, uptime and free disk. Caps Lock and Num Lock blink inside the pill; charger and low battery pop out briefly. Hides itself during full-screen video, games and presentations.
 - **Focus**: a Pomodoro timer that keeps running when you close the panel. Click the time to change it; quick 5 · 15 · 25 · 50 presets.
-- **AI tools**: usage rings for the tools you connect (Claude Code, Codex, GitHub Copilot; Gemini coming soon), plus live Claude Code session status. When a session needs you, a ringing bell stays in the pill until you deal with it.
+- **AI tools**: usage rings for the tools you connect (Claude Code, Codex, GitHub Copilot), plus live Claude Code session status. When a session needs you, a ringing bell stays in the pill until you deal with it.
 - **Teleprompter**: your script scrolls out of the notch, right under your webcam. Smooth scrolling with a reading line, timing by speed, lines per minute or "finish in N minutes", voice mode that only moves while you talk, resizable area, import from .txt, .md, .docx or .pdf, and an optional ambient glow. Hidden from screen share and recordings while you present.
 
 <!-- Add GIFs here: docs/media/island.gif, docs/media/prompter.gif, docs/media/codenotch.gif -->
@@ -63,7 +63,6 @@ Open Settings › AI tools and click **Connect** next to a tool. Overlid looks f
 | Claude Code | `claude`, then `/login` |
 | Codex | `codex login` (ChatGPT sign-in) |
 | GitHub Copilot | `gh auth login` |
-| Gemini | coming soon |
 
 The first connected tool is the primary one, shown in the pill. These usage endpoints are unofficial, so numbers are marked *derived*, and Overlid shows stale or needs-sign-in states rather than guessing.
 

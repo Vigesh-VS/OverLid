@@ -8,7 +8,6 @@
 pub mod claude;
 pub mod codex;
 pub mod copilot;
-pub mod gemini;
 pub mod hook_installer;
 pub mod hook_server;
 pub mod sessions;
@@ -68,7 +67,6 @@ fn providers() -> &'static [Arc<dyn UsageProvider>] {
             Arc::new(claude::ClaudeProvider::new()),
             Arc::new(codex::CodexProvider::new()),
             Arc::new(copilot::CopilotProvider::new()),
-            Arc::new(gemini::GeminiProvider),
         ]
     })
 }

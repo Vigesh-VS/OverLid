@@ -29,3 +29,7 @@ cargo install cargo-license
 cargo license --manifest-path src-tauri/Cargo.toml
 npx license-checker --summary
 ```
+
+## Tool marks
+
+The Claude, OpenAI (used for Codex) and GitHub Copilot marks shown next to usage are taken from [Simple Icons](https://simpleicons.org) v15.0.0, whose icon data is released under CC0 1.0. The marks themselves are trademarks of Anthropic, OpenAI and GitHub respectively. Overlid uses them only to identify which tool a usage reading belongs to, unmodified and monochrome, as Simple Icons' and each owner's brand guidelines ask. Overlid isn't affiliated with or endorsed by these companies.

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { PauseIcon, PlayIcon } from "../../components/icons";
+import { PauseIcon, PlayIcon, ResetIcon, SkipIcon } from "../../components/icons";
 import { Ring } from "../../components/Ring";
 import { withAlpha } from "../../lib/color";
 import { formatCountdown } from "../../lib/format";
@@ -8,7 +8,7 @@ import { commands, run } from "../../lib/ipc";
 import { LEVEL_COLOR, leadSession, useCode, usageLevel } from "../../stores/code";
 import { useIsland } from "../../stores/island";
 import { useMedia } from "../../stores/media";
-import { PHASE_LABEL, usePomodoro } from "../../stores/pomodoro";
+import { PHASE_LABEL, usePomoView } from "../../stores/pomodoro";
 import { useSystem } from "../../stores/system";
 import styles from "./HomePanel.module.css";
 
@@ -77,26 +77,35 @@ function MediaTile() {
 }
 
 function FocusTile() {
-  const pomo = usePomodoro((s) => s.state);
+  const { state: pomo, remainingMs, progress } = usePomoView();
   if (!pomo) return <Tile title="Focus" panel="focus"><span className={styles.muted}>Starting…</span></Tile>;
-  const progress = pomo.totalMs > 0 ? 1 - pomo.remainingMs / pomo.totalMs : 0;
   return (
     <Tile title="Focus" panel="focus">
       <div className={styles.media}>
-        <Ring size={48} stroke={4} value={progress} color={pomo.phase === "focus" ? "var(--ol-text)" : "var(--ol-green)"} />
+        <Ring size={44} stroke={4} value={progress} color={pomo.phase === "focus" ? "var(--ol-text)" : "var(--ol-green)"} />
         <div className={styles.lines}>
-          <span className={styles.big}>{formatCountdown(pomo.remainingMs)}</span>
+          <span className={styles.big}>{formatCountdown(remainingMs)}</span>
           <span className={styles.muted}>
-            {PHASE_LABEL[pomo.phase]} · round {pomo.round} of {pomo.roundsPerCycle}
+            {pomo.breaks ? `${PHASE_LABEL[pomo.phase]} · round ${pomo.round} of ${pomo.roundsPerCycle}` : `${pomo.today.sessions} today`}
           </span>
         </div>
-        <button
-          type="button"
-          className={styles.pill}
-          onClick={() => run(pomo.running ? commands.pomoPause() : commands.pomoStart(), "pomo")}
-        >
-          {pomo.running ? "Pause" : "Start"}
-        </button>
+        <div className={styles.icons}>
+          <button
+            type="button"
+            className={styles.play}
+            aria-label={pomo.running ? "Pause" : "Start"}
+            title={pomo.running ? "Pause" : "Start"}
+            onClick={() => run(pomo.running ? commands.pomoPause() : commands.pomoStart(), "pomo")}
+          >
+            {pomo.running ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+          </button>
+          <button type="button" className={styles.iconButton} aria-label="Skip" title="Skip" onClick={() => run(commands.pomoSkip(), "pomo_skip")}>
+            <SkipIcon size={13} />
+          </button>
+          <button type="button" className={styles.iconButton} aria-label="Reset" title="Reset" onClick={() => run(commands.pomoReset(), "pomo_reset")}>
+            <ResetIcon size={13} />
+          </button>
+        </div>
       </div>
     </Tile>
   );

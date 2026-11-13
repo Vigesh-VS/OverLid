@@ -128,28 +128,18 @@ export function DisplayTab() {
         />
       </Group>
 
-      <Group title="Collapsed pill" note="The time is always shown in the middle. Each indicator appears to its right only when it has something to show.">
+      <Group title="Collapsed pill" note="By default the pill shows only the time. While media plays: album art on the left, the time in the middle, bars on the right.">
         <Toggle
           label="Now playing"
-          hint="Album art and bars. Click to play or pause."
+          hint="Album art and bars while media plays. Click the art to play or pause."
           checked={g.indicators.media}
           onChange={(v) => set({ indicators: { ...g.indicators, media: v } })}
         />
         <Toggle
-          label="Focus timer"
-          checked={g.indicators.focus}
-          onChange={(v) => set({ indicators: { ...g.indicators, focus: v } })}
-        />
-        <Toggle
-          label="AI usage"
-          hint="The primary connected tool's 5-hour usage."
-          checked={g.indicators.usage}
-          onChange={(v) => set({ indicators: { ...g.indicators, usage: v } })}
-        />
-        <Toggle
-          label="Quick action"
-          checked={g.indicators.quickAction}
-          onChange={(v) => set({ indicators: { ...g.indicators, quickAction: v } })}
+          label="Extended pill"
+          hint="When nothing is playing: the AI tool you're using and its usage on the left, your quick action on the right."
+          checked={g.extendedPill}
+          onChange={(v) => set({ extendedPill: v })}
         />
       </Group>
     </>

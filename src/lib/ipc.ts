@@ -54,6 +54,8 @@ export interface Settings {
     pillHeight: number;
     closeDelayMs: number;
     indicators: { media: boolean; focus: boolean; usage: boolean; quickAction: boolean };
+    /** AI tool + usage left, quick action right (when nothing is playing). */
+    extendedPill: boolean;
     welcomeSeen: boolean;
   };
   peeks: {
@@ -69,7 +71,9 @@ export interface Settings {
     shortMin: number;
     longMin: number;
     longEvery: number;
+    breaks: boolean;
     autoStartBreaks: boolean;
+    showInPill: boolean;
   };
   code: {
     enabled: boolean;
@@ -229,9 +233,13 @@ export interface PomoState {
   phase: PomoPhase;
   running: boolean;
   remainingMs: number;
+  /** Unix ms when the phase ends, while running. */
+  endsAtMs: number | null;
   totalMs: number;
   round: number;
   roundsPerCycle: number;
+  /** Pomodoro breaks/rounds on; off = plain focus timer. */
+  breaks: boolean;
   today: DayStats;
 }
 
@@ -252,7 +260,7 @@ export interface UsageSnapshot {
   plan: string | null;
 }
 
-export type ProviderId = "claude" | "codex" | "copilot" | "gemini";
+export type ProviderId = "claude" | "codex" | "copilot";
 
 export interface ProviderInfo {
   id: ProviderId;

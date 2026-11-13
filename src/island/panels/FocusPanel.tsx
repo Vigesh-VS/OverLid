@@ -3,14 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { PauseIcon, PlayIcon, ResetIcon, SkipIcon } from "../../components/icons";
 import { formatCountdown, formatDuration } from "../../lib/format";
 import { commands, run, type PomoPhase } from "../../lib/ipc";
-import { PHASE_LABEL, usePomodoro } from "../../stores/pomodoro";
+import { PHASE_LABEL, usePomoView } from "../../stores/pomodoro";
 import { useSystem } from "../../stores/system";
 import styles from "./FocusPanel.module.css";
 
-const PRESETS = [5, 15, 25, 50];
+const PRESETS = [5, 10, 15, 25];
 
 export function FocusPanel() {
-  const state = usePomodoro((s) => s.state);
+  const { state, remainingMs, progress } = usePomoView();
   const focus = useSystem((s) => s.settings?.focus);
   const [editing, setEditing] = useState(false);
 
@@ -18,9 +18,8 @@ export function FocusPanel() {
     return <div className={styles.loading}>Starting the timer…</div>;
   }
 
-  const progress = state.totalMs > 0 ? 1 - state.remainingMs / state.totalMs : 0;
   const onBreak = state.phase !== "focus";
-  const fresh = !state.running && state.remainingMs >= state.totalMs;
+  const fresh = !state.running && remainingMs >= state.totalMs;
   const minutesFor: Record<PomoPhase, number> = {
     focus: focus.focusMin,
     shortBreak: focus.shortMin,
@@ -32,6 +31,8 @@ export function FocusPanel() {
       <div className={styles.row}>
         <div className={styles.left}>
           <span className={onBreak ? `${styles.phase} ${styles.break}` : styles.phase}>{PHASE_LABEL[state.phase]}</span>
+          {state.breaks && (
+          <>
           <div className={styles.dots} role="img" aria-label={`Round ${state.round} of ${state.roundsPerCycle}`}>
             {Array.from({ length: state.roundsPerCycle }, (_, i) => {
               const n = i + 1;
@@ -47,6 +48,13 @@ export function FocusPanel() {
           <span className={styles.round}>
             Round {state.round} of {state.roundsPerCycle}
           </span>
+          </>
+          )}
+          {!state.breaks && (
+            <span className={styles.round}>
+              {state.running ? "Running" : fresh ? "Ready" : "Paused"}
+            </span>
+          )}
         </div>
 
         <div className={styles.center}>
@@ -63,10 +71,10 @@ export function FocusPanel() {
               type="button"
               className={styles.time}
               title={`Click to change the ${PHASE_LABEL[state.phase].toLowerCase()} length`}
-              aria-label={`${formatCountdown(state.remainingMs)} left. Change the ${PHASE_LABEL[state.phase].toLowerCase()} length`}
+              aria-label={`${formatCountdown(remainingMs)} left. Change the ${PHASE_LABEL[state.phase].toLowerCase()} length`}
               onClick={() => setEditing(true)}
             >
-              {formatCountdown(state.remainingMs)}
+              {formatCountdown(remainingMs)}
             </button>
           )}
         </div>
@@ -109,10 +117,9 @@ export function FocusPanel() {
           ))}
           <span className={styles.unit}>min focus</span>
         </div>
-        <BreakField label="Short" value={focus.shortMin} phase="shortBreak" />
-        <BreakField label="Long" value={focus.longMin} phase="longBreak" />
         <span className={styles.today}>
-          <strong>{formatDuration(state.today.minutes * 60)}</strong> today · {state.today.sessions}{" "}
+          <strong>{state.today.minutes > 0 ? formatDuration(state.today.minutes * 60) : "0m"}</strong> today ·{" "}
+          {state.today.sessions}{" "}
           {state.today.sessions === 1 ? "session" : "sessions"}
         </span>
       </div>
@@ -150,30 +157,5 @@ function MinutesField({ initial, onDone }: { initial: number; onDone: (minutes: 
       />
       <span>min</span>
     </span>
-  );
-}
-
-function BreakField({ label, value, phase }: { label: string; value: number; phase: PomoPhase }) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-  const commit = () => {
-    const m = Number.parseInt(draft, 10);
-    if (Number.isFinite(m) && m !== value) run(commands.pomoSetLength(phase, Math.min(180, Math.max(1, m))), "pomo_set_length");
-    else setDraft(String(value));
-  };
-  return (
-    <label className={styles.breakField}>
-      {label}
-      <input
-        type="number"
-        min={1}
-        max={180}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-      />
-      min
-    </label>
   );
 }

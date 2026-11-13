@@ -171,3 +171,30 @@
   flex-direction: column;
   gap: 4px;
 }
+
+.icons {
+  display: flex;
+  align-items: center;
+  gap: var(--ol-space-2);
+  flex-shrink: 0;
+}
+
+.iconButton {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ol-surface-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconButton:hover {
+  background: var(--ol-track);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 2px;
+}

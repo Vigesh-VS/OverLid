@@ -6,7 +6,7 @@ import { useIsland, type PanelId } from "../stores/island";
 import { usePrompter } from "../stores/prompter";
 import { useSystem } from "../stores/system";
 import { readIslandTokens, type Shape } from "../styles/tokens";
-import { CompactBar, PILL_LAYOUT } from "./compact/CompactBar";
+import { CompactBar, usePill } from "./compact/CompactBar";
 import { LockToast } from "./compact/LockToast";
 import { ExpandedShell } from "./panels/ExpandedShell";
 import { PeekView } from "./peek/PeekView";
@@ -46,7 +46,6 @@ export function Island() {
   const { mode, hovered, panel, peek, setMode, setPanel, setHovered, nextPeek, clearPeeks } = useIsland();
   const dragging = useIsland((s) => s.dragging);
   const panelHeights = useIsland((s) => s.panelHeights);
-  const indicatorsWidth = useIsland((s) => s.indicatorsWidth);
   const overIndicator = useIsland((s) => s.overIndicator);
   const suppressExpand = useIsland((s) => s.suppressExpand);
   const prompter = usePrompter((s) => s.status);
@@ -61,13 +60,10 @@ export function Island() {
   const presenting = prompter !== "idle";
   const expanded = mode === "expanded" && !presenting;
 
-  // Collapsed pill: the time is centred, so the pill grows by twice the
-  // indicator group's width and the time never moves.
+  // Collapsed pill: width is computed from the slots visible right now
+  // (never measured), so it always shrinks back when a slot goes away.
   const pillHeight = general?.pillHeight ?? tokens.pill.height;
-  const pillWidth = Math.max(
-    PILL_LAYOUT.minWidth,
-    PILL_LAYOUT.timeWidth + 2 * (indicatorsWidth > 0 ? indicatorsWidth + PILL_LAYOUT.gap : 0) + 2 * PILL_LAYOUT.padding,
-  );
+  const { width: pillWidth } = usePill();
   const pill: Shape = { ...tokens.pill, width: pillWidth, height: pillHeight, radius: pillHeight / 2 };
 
   let view: "compact" | "lock" | "peek" | "expanded" | "countdown" | "prompter" = "compact";

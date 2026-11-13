@@ -9,21 +9,30 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-size: var(--ol-fs-md);
+  font-size: var(--ol-fs-pill-time);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
-.right {
+/* Slot groups either side of the time; widths come from pillLayout.ts. */
+.side {
   position: absolute;
   top: 0;
   bottom: 0;
   display: flex;
   align-items: center;
-  gap: var(--ol-space-4);
+  gap: 10px;
   white-space: nowrap;
+}
+
+.slot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .media {

@@ -39,23 +39,37 @@ export function FocusTab() {
   return (
     <>
       <Group title="Timer">
-        <NumberField label="Focus" value={f.focusMin} min={1} max={180} unit="min" onChange={(v) => set({ focusMin: v })} />
-        <NumberField label="Short break" value={f.shortMin} min={1} max={60} unit="min" onChange={(v) => set({ shortMin: v })} />
-        <NumberField label="Long break" value={f.longMin} min={1} max={120} unit="min" onChange={(v) => set({ longMin: v })} />
-        <NumberField
-          label="Long break after"
-          value={f.longEvery}
-          min={1}
-          max={12}
-          unit="rounds"
-          onChange={(v) => set({ longEvery: v })}
-        />
+        <NumberField label="Focus length" value={f.focusMin} min={1} max={180} unit="min" onChange={(v) => set({ focusMin: v })} />
         <Toggle
-          label="Start breaks automatically"
-          hint="Focus rounds always wait for you."
-          checked={f.autoStartBreaks}
-          onChange={(v) => set({ autoStartBreaks: v })}
+          label="Show focus countdown in pill"
+          hint="Shows the ring and time next to the clock while a timer is running."
+          checked={f.showInPill}
+          onChange={(v) => set({ showInPill: v })}
         />
+      </Group>
+
+      <Group title="Pomodoro breaks" note="Off: a simple focus timer. On: focus rounds alternate with short breaks, and a long break after a set number of rounds.">
+        <Toggle label="Pomodoro breaks" checked={f.breaks} onChange={(v) => set({ breaks: v })} />
+        {f.breaks && (
+          <>
+            <NumberField label="Short break" value={f.shortMin} min={1} max={60} unit="min" onChange={(v) => set({ shortMin: v })} />
+            <NumberField label="Long break" value={f.longMin} min={1} max={120} unit="min" onChange={(v) => set({ longMin: v })} />
+            <NumberField
+              label="Long break after"
+              value={f.longEvery}
+              min={1}
+              max={12}
+              unit="rounds"
+              onChange={(v) => set({ longEvery: v })}
+            />
+            <Toggle
+              label="Start breaks automatically"
+              hint="Focus rounds always wait for you."
+              checked={f.autoStartBreaks}
+              onChange={(v) => set({ autoStartBreaks: v })}
+            />
+          </>
+        )}
       </Group>
 
       <Group title="Last 7 days" note={`${Math.round(total / 6) / 10} hours of focus this week.`}>

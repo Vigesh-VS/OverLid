@@ -1,113 +1,140 @@
-import { useLayoutEffect, useRef, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 
+import { ProviderMark } from "../../components/ProviderIcon";
 import { Ring } from "../../components/Ring";
 import { formatCountdown } from "../../lib/format";
-import { commands, run } from "../../lib/ipc";
-import { LEVEL_COLOR, primaryUsage, useCode, usageLevel } from "../../stores/code";
+import { commands, run, type ProviderId, type ProviderStatus, type UsageWindow } from "../../lib/ipc";
+import { LEVEL_COLOR, leadSession, useCode, usageLevel } from "../../stores/code";
 import { useIsland } from "../../stores/island";
 import { useMedia } from "../../stores/media";
-import { pomoActive, usePomodoro } from "../../stores/pomodoro";
+import { pomoActive, usePomoView } from "../../stores/pomodoro";
 import { useSystem } from "../../stores/system";
 import { AttentionBell } from "./AttentionBell";
 import { Clock } from "./Clock";
 import styles from "./CompactBar.module.css";
+import { PILL, SLOT_WIDTH, pillSlots, pillWidth, type PillSlots, type Slot } from "./pillLayout";
 import { QuickActionButton } from "./QuickActionButton";
 
-/** Geometry the island uses to size the pill around the centred time. */
-export const PILL_LAYOUT = {
-  /** Width reserved for "00:00" in bold tabular figures. */
-  timeWidth: 44,
-  gap: 10,
-  padding: 12,
-  minWidth: 120,
-};
+/** The AI tool the pill should represent: the one you're using, else the primary. */
+function activeTool(usage: ProviderStatus[], claudeActive: boolean): { status: ProviderStatus; window: UsageWindow } | null {
+  const status = (claudeActive && usage.find((u) => u.providerId === "claude")) || usage[0];
+  const windows = status?.snapshot?.windows ?? [];
+  const window = windows.find((w) => w.key === "five_hour" || w.key === "primary") ?? windows[0];
+  return status && window ? { status, window } : null;
+}
 
-/**
- * The collapsed pill. The time is always centred and never replaced. Other
- * indicators sit to its right in a fixed order: attention · now playing ·
- * focus · AI usage · quick action. Each appears only when it has something to
- * show; the island grows the pill symmetrically so the time stays put.
- */
-export function CompactBar() {
+/** What the collapsed pill shows right now. Shared by the island (width) and the bar (content). */
+export function usePill(): { slots: PillSlots; width: number } {
   const media = useMedia((s) => s.media);
-  const accent = useMedia((s) => s.accent);
-  const pomo = usePomodoro((s) => s.state);
   const usage = useCode((s) => s.usage);
+  const sessions = useCode((s) => s.sessions);
   const attention = useCode((s) => s.attention);
   const general = useSystem((s) => s.settings?.general);
+  const focusInPill = useSystem((s) => s.settings?.focus.showInPill ?? false);
+  const quick = useSystem((s) => s.settings?.quickAction);
+  const { state: pomo } = usePomoView();
+
+  const lead = leadSession(sessions);
+  const claudeActive = lead?.status === "busy" || lead?.status === "waiting";
+  const slots = pillSlots({
+    mediaPlaying: (general?.indicators.media ?? true) && !!media?.playing,
+    attention: !!attention,
+    extended: general?.extendedPill ?? false,
+    usage: !!activeTool(usage, claudeActive),
+    quickAction: !!quick && quick.kind !== "none",
+    focus: focusInPill && pomoActive(pomo),
+  });
+  return { slots, width: pillWidth(slots) };
+}
+
+/**
+ * The collapsed pill: the bold time dead centre, optional slots either side.
+ * Each slot is a fixed-width box, matching the widths the layout used.
+ */
+export function CompactBar() {
+  const { slots } = usePill();
+  const media = useMedia((s) => s.media);
+  const accent = useMedia((s) => s.accent);
+  const usage = useCode((s) => s.usage);
+  const sessions = useCode((s) => s.sessions);
+  const attention = useCode((s) => s.attention);
   const code = useSystem((s) => s.settings?.code);
   const quick = useSystem((s) => s.settings?.quickAction);
-  const setIndicatorsWidth = useIsland((s) => s.setIndicatorsWidth);
+  const { state: pomo, remainingMs, progress } = usePomoView();
   const setOverIndicator = useIsland((s) => s.setOverIndicator);
   const setSuppressExpand = useIsland((s) => s.setSuppressExpand);
-  const groupRef = useRef<HTMLDivElement>(null);
-
-  const show = general?.indicators ?? { media: true, focus: true, usage: true, quickAction: true };
-  const items: ReactNode[] = [];
 
   function clickIndicator(e: MouseEvent) {
     e.stopPropagation();
     setSuppressExpand(true);
   }
 
-  if (attention) items.push(<AttentionBell key="attention" session={attention} onPress={clickIndicator} />);
+  const lead = leadSession(sessions);
+  const tool = activeTool(usage, lead?.status === "busy" || lead?.status === "waiting");
 
-  if (show.media && media?.playing) {
-    items.push(
-      <button
-        key="media"
-        type="button"
-        className={styles.media}
-        data-indicator
-        aria-label="Pause media"
-        onClick={(e) => {
-          clickIndicator(e);
-          run(commands.mediaPlayPause(), "media_play_pause");
-        }}
-      >
-        {media.art ? <img className={styles.art} src={media.art} alt="" draggable={false} /> : <span className={styles.art} />}
-        <Bars />
-      </button>,
-    );
-  }
+  const render = (slot: Slot): ReactNode => {
+    switch (slot) {
+      case "bell":
+        return attention && <AttentionBell session={attention} onPress={clickIndicator} />;
+      case "art":
+        return (
+          <button
+            type="button"
+            className={styles.media}
+            data-indicator
+            aria-label={media?.playing ? "Pause media" : "Play media"}
+            onClick={(e) => {
+              clickIndicator(e);
+              run(commands.mediaPlayPause(), "media_play_pause");
+            }}
+          >
+            {media?.art ? <img className={styles.art} src={media.art} alt="" draggable={false} /> : <span className={styles.art} />}
+          </button>
+        );
+      case "bars":
+        return <Bars />;
+      case "usage": {
+        if (!tool) return null;
+        const color = LEVEL_COLOR[usageLevel(tool.window.usedPercent, code?.warnPct, code?.criticalPct)];
+        return (
+          <span className={styles.usage} style={{ color }} title={`${tool.status.displayName} ${tool.window.label}`}>
+            <ProviderMark id={tool.status.providerId as ProviderId} size={13} color="var(--ol-text)" />
+            <span className={styles.usagePct}>{Math.round(tool.window.usedPercent)}%</span>
+          </span>
+        );
+      }
+      case "focus":
+        return (
+          pomo && (
+            <span className={styles.pomo}>
+              <Ring size={14} stroke={2.5} value={progress} color={pomo.phase === "focus" ? "var(--ol-text)" : "var(--ol-green)"} />
+              <span className={pomo.running ? styles.pomoTime : `${styles.pomoTime} ${styles.paused}`}>
+                {formatCountdown(remainingMs)}
+              </span>
+            </span>
+          )
+        );
+      case "quick":
+        return quick && <QuickActionButton action={quick} onPress={clickIndicator} />;
+    }
+  };
 
-  if (show.focus && pomo && pomoActive(pomo)) {
-    const progress = pomo.totalMs > 0 ? 1 - pomo.remainingMs / pomo.totalMs : 0;
-    items.push(
-      <span key="pomo" className={styles.pomo}>
-        <Ring size={14} stroke={2.5} value={progress} color={pomo.phase === "focus" ? "var(--ol-text)" : "var(--ol-green)"} />
-        <span className={pomo.running ? styles.pomoTime : `${styles.pomoTime} ${styles.paused}`}>
-          {formatCountdown(pomo.remainingMs)}
+  const side = (list: Slot[], align: "left" | "right") => (
+    <div
+      className={styles.side}
+      style={
+        align === "left"
+          ? { right: `calc(50% + ${PILL.timeWidth / 2 + PILL.gap}px)`, justifyContent: "flex-end" }
+          : { left: `calc(50% + ${PILL.timeWidth / 2 + PILL.gap}px)` }
+      }
+    >
+      {list.map((slot) => (
+        <span key={slot} className={styles.slot} style={{ width: SLOT_WIDTH[slot] }}>
+          {render(slot)}
         </span>
-      </span>,
-    );
-  }
-
-  const primary = primaryUsage(usage);
-  if (show.usage && primary) {
-    const color = LEVEL_COLOR[usageLevel(primary.usedPercent, code?.warnPct, code?.criticalPct)];
-    items.push(
-      <span key="usage" className={styles.usage} style={{ color }}>
-        <Ring size={14} stroke={2.5} value={primary.usedPercent / 100} color={color} label={`${primary.label} usage`} />
-        <span className={styles.usagePct}>{Math.round(primary.usedPercent)}%</span>
-      </span>,
-    );
-  }
-
-  if (show.quickAction && quick && quick.kind !== "none") {
-    items.push(<QuickActionButton key="quick" action={quick} onPress={clickIndicator} />);
-  }
-
-  // Tell the island how wide the right-hand group is (in unscaled px).
-  useLayoutEffect(() => {
-    const el = groupRef.current;
-    if (!el) return;
-    const measure = () => setIndicatorsWidth(el.childElementCount ? el.offsetWidth : 0);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [items.length, setIndicatorsWidth]);
+      ))}
+    </div>
+  );
 
   return (
     <div
@@ -115,14 +142,9 @@ export function CompactBar() {
       style={{ "--accent": accent } as CSSProperties}
       onPointerOver={(e) => setOverIndicator(!!(e.target as HTMLElement).closest("[data-indicator]"))}
     >
+      {slots.left.length > 0 && side(slots.left, "left")}
       <Clock className={styles.clock} />
-      <div
-        ref={groupRef}
-        className={styles.right}
-        style={{ left: `calc(50% + ${PILL_LAYOUT.timeWidth / 2 + PILL_LAYOUT.gap}px)` }}
-      >
-        {items}
-      </div>
+      {slots.right.length > 0 && side(slots.right, "right")}
     </div>
   );
 }

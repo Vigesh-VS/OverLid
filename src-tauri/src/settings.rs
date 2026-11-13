@@ -81,6 +81,8 @@ pub struct General {
     /// How long the island stays open after the cursor leaves.
     pub close_delay_ms: u32,
     pub indicators: Indicators,
+    /// Extended pill: AI tool + usage on the left, quick action on the right.
+    pub extended_pill: bool,
     /// The first-run welcome screen has been shown.
     pub welcome_seen: bool,
 }
@@ -98,6 +100,7 @@ impl Default for General {
             pill_height: 34,
             close_delay_ms: 400,
             indicators: Indicators::default(),
+            extended_pill: false,
             welcome_seen: false,
         }
     }
@@ -134,7 +137,11 @@ pub struct Focus {
     pub short_min: u32,
     pub long_min: u32,
     pub long_every: u32,
+    /// Pomodoro breaks and rounds. Off = a plain focus timer.
+    pub breaks: bool,
     pub auto_start_breaks: bool,
+    /// Show the countdown in the collapsed pill.
+    pub show_in_pill: bool,
 }
 
 impl Default for Focus {
@@ -144,7 +151,9 @@ impl Default for Focus {
             short_min: 5,
             long_min: 15,
             long_every: 4,
+            breaks: false,
             auto_start_breaks: false,
+            show_in_pill: false,
         }
     }
 }
@@ -396,6 +405,8 @@ impl Settings {
 
         let c = &mut self.code;
         c.connected.dedup();
+        // Only tools Overlid supports (older settings may list removed ones).
+        c.connected.retain(|id| matches!(id.as_str(), "claude" | "codex" | "copilot"));
         c.poll_secs = c.poll_secs.clamp(60, 3600);
         if c.port < 1024 {
             c.port = Code::default().port;

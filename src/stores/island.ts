@@ -30,9 +30,6 @@ interface IslandState {
   /** Measured content height of each expanded panel. */
   panelHeights: Partial<Record<PanelId, number>>;
   setPanelHeight: (panel: PanelId, height: number) => void;
-  /** Measured width of the pill's right-hand indicator group. */
-  indicatorsWidth: number;
-  setIndicatorsWidth: (width: number) => void;
   /** Pointer is over a clickable pill indicator: wait longer before expanding. */
   overIndicator: boolean;
   setOverIndicator: (over: boolean) => void;
@@ -61,8 +58,6 @@ export const useIsland = create<IslandState>((set) => ({
   panelHeights: {},
   setPanelHeight: (panel, height) =>
     set((s) => (s.panelHeights[panel] === height ? s : { panelHeights: { ...s.panelHeights, [panel]: height } })),
-  indicatorsWidth: 0,
-  setIndicatorsWidth: (indicatorsWidth) => set({ indicatorsWidth }),
   overIndicator: false,
   setOverIndicator: (overIndicator) => set({ overIndicator }),
   suppressExpand: false,

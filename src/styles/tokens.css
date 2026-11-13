@@ -38,6 +38,8 @@
   --ol-fs-tab: 12.5px;
   --ol-fs-md: 13px;
   --ol-fs-lg: 15px;
+  /* The collapsed pill's clock: bold and readable at a glance. */
+  --ol-fs-pill-time: 16px;
 
   /* Collapsed pill */
   --ol-pill-w: 200px;
