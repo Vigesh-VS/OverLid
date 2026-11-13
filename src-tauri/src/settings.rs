@@ -20,18 +20,30 @@ pub enum CaptureMode {
     Never,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Position {
+    #[default]
+    Center,
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct General {
-    /// Monitor name to anchor the island to; `None` = primary.
-    pub monitor: Option<String>,
+    /// Where on the main monitor's top edge the island sits.
+    pub position: Position,
+    /// Logical px nudge: from the centre, or in from the corner.
+    pub offset_x: i32,
     pub hide_from_capture: CaptureMode,
 }
 
 impl Default for General {
     fn default() -> Self {
         Self {
-            monitor: None,
+            position: Position::Center,
+            offset_x: 0,
             hide_from_capture: CaptureMode::PrompterOnly,
         }
     }
@@ -133,6 +145,18 @@ impl Default for Shortcuts {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TimingMode {
+    /// Fixed px per second.
+    #[default]
+    Speed,
+    /// Lines per minute, converted using the current line height.
+    Lines,
+    /// Finish the whole script in `duration_min` minutes.
+    Duration,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Prompter {
@@ -145,6 +169,11 @@ pub struct Prompter {
     pub mirror: bool,
     pub width: u32,
     pub height: u32,
+    pub timing_mode: TimingMode,
+    pub lines_per_minute: f64,
+    pub duration_min: f64,
+    /// Scale the text with the area instead of keeping a fixed size.
+    pub auto_fit: bool,
     pub voice: bool,
     /// 0–1; higher = needs louder speech to scroll.
     pub voice_threshold: f64,
@@ -164,8 +193,12 @@ impl Default for Prompter {
             mirror: false,
             width: 560,
             height: 200,
+            timing_mode: TimingMode::Speed,
+            lines_per_minute: 30.0,
+            duration_min: 5.0,
+            auto_fit: false,
             voice: false,
-            voice_threshold: 0.35,
+            voice_threshold: 0.4,
             mic_device: None,
             capture_hint_seen: false,
             shortcuts: Shortcuts::default(),
@@ -186,6 +219,8 @@ pub struct Settings {
 impl Settings {
     /// Clamp everything into ranges the rest of the app can rely on.
     fn sanitized(mut self) -> Self {
+        self.general.offset_x = self.general.offset_x.clamp(-600, 600);
+
         let f = &mut self.focus;
         f.focus_min = f.focus_min.clamp(1, 180);
         f.short_min = f.short_min.clamp(1, 60);
@@ -207,6 +242,8 @@ impl Settings {
         p.width = p.width.clamp(320, 760);
         p.height = p.height.clamp(120, 420);
         p.voice_threshold = p.voice_threshold.clamp(0.0, 1.0);
+        p.lines_per_minute = p.lines_per_minute.clamp(2.0, 200.0);
+        p.duration_min = p.duration_min.clamp(0.5, 180.0);
         if p.font_family.trim().is_empty() {
             p.font_family = Prompter::default().font_family;
         }

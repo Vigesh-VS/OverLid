@@ -24,6 +24,9 @@ interface IslandState {
   /** Peek on screen right now, if any. */
   peek: Peek | null;
   queue: Peek[];
+  /** A resize drag is in progress; the hit rect covers the whole window. */
+  dragging: boolean;
+  setDragging: (dragging: boolean) => void;
   setMode: (mode: IslandMode) => void;
   setHovered: (hovered: boolean) => void;
   setPanel: (panel: PanelId) => void;
@@ -41,6 +44,8 @@ export const useIsland = create<IslandState>((set) => ({
   flags: { paused: false, gameMode: false, fullscreen: false, prompter: false },
   peek: null,
   queue: [],
+  dragging: false,
+  setDragging: (dragging) => set({ dragging }),
   setMode: (mode) => set({ mode }),
   setHovered: (hovered) => set({ hovered }),
   setPanel: (panel) => set({ panel }),

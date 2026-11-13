@@ -42,6 +42,8 @@ export function Island() {
     useIsland();
   const prompter = usePrompter((s) => s.status);
   const prompterPrefs = useSystem((s) => s.settings?.prompter);
+  const area = usePrompter((s) => s.area);
+  const dragging = useIsland((s) => s.dragging);
   const presenting = prompter !== "idle";
   const expanded = mode === "expanded" && !presenting;
 
@@ -53,8 +55,8 @@ export function Island() {
   if (prompter === "presenting") {
     view = "prompter";
     shape = {
-      width: (prompterPrefs?.width ?? 560) + 40,
-      height: (prompterPrefs?.height ?? 200) + tokens.prompterChrome,
+      width: (area?.width ?? prompterPrefs?.width ?? 560) + 40,
+      height: (area?.height ?? prompterPrefs?.height ?? 200) + tokens.prompterChrome,
       radius: tokens.expanded.radius,
       ear: tokens.expanded.ear,
     };
@@ -122,19 +124,18 @@ export function Island() {
   useEffect(() => {
     if (!inTauri) return;
     const report = () => {
+      // While resizing, the whole window takes the cursor so the drag can't fall through.
+      const rect = dragging
+        ? { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }
+        : { x: (window.innerWidth - shape.width) / 2, y: 0, width: shape.width, height: shape.height };
       commands
-        .setHitRect({
-          x: (window.innerWidth - shape.width) / 2,
-          y: 0,
-          width: shape.width,
-          height: shape.height,
-        })
+        .setHitRect(rect)
         .catch((e: unknown) => console.error("set_hit_rect failed", e));
     };
     report();
     window.addEventListener("resize", report);
     return () => window.removeEventListener("resize", report);
-  }, [shape.width, shape.height]);
+  }, [shape.width, shape.height, dragging]);
 
   return (
     <div className={styles.stage}>

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { commands, on, type PrompterShortcuts } from "../../lib/ipc";
-import { Group, Row, Select, Slider, TextField, Toggle } from "../controls";
+import { commands, on, type PrompterShortcuts, type TimingMode, type VoiceStatus } from "../../lib/ipc";
+import { Choice, Group, Row, Select, Slider, TextField, Toggle } from "../controls";
 import styles from "../Settings.module.css";
 import { section, useSettingsStore } from "../useSettings";
 
@@ -22,6 +22,12 @@ const FONTS = [
   "Cascadia Code",
 ];
 
+const TIMING: ReadonlyArray<{ value: TimingMode; label: string }> = [
+  { value: "speed", label: "Speed" },
+  { value: "lines", label: "Lines per minute" },
+  { value: "duration", label: "Finish in" },
+];
+
 const SHORTCUT_LABELS: Record<keyof PrompterShortcuts, string> = {
   toggle: "Start / stop the prompter",
   playPause: "Play / pause",
@@ -32,6 +38,10 @@ const SHORTCUT_LABELS: Record<keyof PrompterShortcuts, string> = {
   prevSection: "Previous section",
   nextSection: "Next section",
 };
+
+const CALIBRATE_MS = 3000;
+
+const toDb = (level: number) => Math.round(level * 60 - 60);
 
 export function PrompterTab() {
   const settings = useSettingsStore((s) => s.settings);
@@ -49,7 +59,7 @@ export function PrompterTab() {
 
   return (
     <>
-      <Group title="Text">
+      <Group title="Text" note="Text size is separate from the prompter's size. Text always wraps to fit the width.">
         <Select
           label="Font"
           value={FONTS.includes(p.fontFamily) ? p.fontFamily : FONTS[0]}
@@ -57,6 +67,12 @@ export function PrompterTab() {
           onChange={(v) => set({ fontFamily: v })}
         />
         <Slider label="Size" value={p.fontSize} min={14} max={72} format={(v) => `${v} px`} onChange={(v) => set({ fontSize: v })} />
+        <Toggle
+          label="Auto-fit"
+          hint="Scale the text with the prompter's width. Off keeps your size fixed."
+          checked={p.autoFit}
+          onChange={(v) => set({ autoFit: v })}
+        />
         <Slider
           label="Line height"
           value={p.lineHeight}
@@ -90,23 +106,46 @@ export function PrompterTab() {
             />
           </div>
         </Row>
-        <Toggle
-          label="Mirror mode"
-          hint="Flip the text for teleprompter glass."
-          checked={p.mirror}
-          onChange={(v) => set({ mirror: v })}
-        />
+        <Toggle label="Mirror mode" hint="Flip the text for teleprompter glass." checked={p.mirror} onChange={(v) => set({ mirror: v })} />
       </Group>
 
-      <Group title="Size and speed">
-        <Slider label="Default speed" value={p.speed} min={5} max={400} format={(v) => `${Math.round(v)} px/s`} onChange={(v) => set({ speed: v })} />
+      <Group title="Area" note="You can also drag the prompter's left, right and bottom edges while presenting.">
         <Slider label="Width" value={p.width} min={320} max={760} step={10} format={(v) => `${v} px`} onChange={(v) => set({ width: v })} />
         <Slider label="Height" value={p.height} min={120} max={420} step={10} format={(v) => `${v} px`} onChange={(v) => set({ height: v })} />
       </Group>
 
+      <Group title="Auto-scroll timing" note="Ctrl+Alt+Up and Down still adjust the pace while you present.">
+        <Choice label="Pace by" value={p.timingMode} options={TIMING} onChange={(v) => set({ timingMode: v })} />
+        {p.timingMode === "speed" && (
+          <Slider label="Speed" value={p.speed} min={5} max={400} format={(v) => `${Math.round(v)} px/s`} onChange={(v) => set({ speed: v })} />
+        )}
+        {p.timingMode === "lines" && (
+          <Slider
+            label="Lines per minute"
+            value={p.linesPerMinute}
+            min={2}
+            max={200}
+            format={(v) => `${Math.round(v)} lines`}
+            onChange={(v) => set({ linesPerMinute: v })}
+          />
+        )}
+        {p.timingMode === "duration" && (
+          <Slider
+            label="Finish the script in"
+            hint="Overlid works out the speed from the script's length."
+            value={p.durationMin}
+            min={0.5}
+            max={60}
+            step={0.5}
+            format={(v) => `${v} min`}
+            onChange={(v) => set({ durationMin: v })}
+          />
+        )}
+      </Group>
+
       <Group
         title="Voice mode"
-        note="The script moves only while you're talking. The microphone level is worked out in memory, and audio is never recorded, stored or sent anywhere."
+        note="The script moves only while you're talking, then eases to a stop. Auto-scroll is off while voice mode is on. The microphone level is worked out in memory, and audio is never recorded, stored or sent anywhere."
       >
         <Toggle label="Scroll with my voice" checked={p.voice} onChange={(v) => set({ voice: v })} />
         <Select
@@ -116,15 +155,19 @@ export function PrompterTab() {
           onChange={(v) => set({ micDevice: v || null })}
         />
         <Slider
-          label="Sensitivity"
-          hint="Lower picks up quieter speech. Raise it if background noise moves the script."
+          label="Threshold"
+          hint="Speech must be louder than this. Calibrate sets it for you."
           value={Math.round(p.voiceThreshold * 100)}
           min={0}
           max={100}
-          format={(v) => `${v}`}
+          format={(v) => `${toDb(v / 100)} dB`}
           onChange={(v) => set({ voiceThreshold: v / 100 })}
         />
-        <MicTest device={p.micDevice} threshold={p.voiceThreshold} />
+        <MicMeter
+          device={p.micDevice}
+          threshold={p.voiceThreshold}
+          onCalibrated={(t) => set({ voiceThreshold: t })}
+        />
       </Group>
 
       <Group
@@ -144,41 +187,94 @@ export function PrompterTab() {
   );
 }
 
-function MicTest({ device, threshold }: { device: string | null; threshold: number }) {
-  const [testing, setTesting] = useState(false);
+/** Live level meter plus a 3-second silence calibration. */
+function MicMeter({
+  device,
+  threshold,
+  onCalibrated,
+}: {
+  device: string | null;
+  threshold: number;
+  onCalibrated: (threshold: number) => void;
+}) {
+  const [active, setActive] = useState(false);
   const [level, setLevel] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<VoiceStatus | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const samples = useRef<number[] | null>(null);
 
   useEffect(() => {
-    if (!testing) return;
-    setError(null);
-    const offLevel = on("voice://level", setLevel);
-    const offError = on("voice://error", (e) => {
-      setError(e);
-      setTesting(false);
+    commands.voicePrivacy().then((reason) => reason && setResult(reason), () => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
+    const offLevel = on("voice://level", (v) => {
+      if (v.owner !== "settings") return;
+      setLevel(v.level);
+      samples.current?.push(v.level);
     });
-    void commands.voiceStart(device);
+    const offStatus = on("voice://status", (s) => s.owner === "settings" && setStatus(s));
+    void commands.voiceStart("settings", device);
     return () => {
-      void commands.voiceStop();
+      void commands.voiceStop("settings");
       void offLevel.then((f) => f());
-      void offError.then((f) => f());
+      void offStatus.then((f) => f());
       setLevel(0);
+      setStatus(null);
     };
-  }, [testing, device]);
+  }, [active, device]);
+
+  const calibrate = () => {
+    setResult(null);
+    setActive(true);
+    setCalibrating(true);
+    // Let the stream warm up, then record 3 s of room noise.
+    window.setTimeout(() => {
+      samples.current = [];
+      window.setTimeout(() => {
+        const got = samples.current ?? [];
+        samples.current = null;
+        setCalibrating(false);
+        if (got.length < 20 || got.every((v) => v === 0)) {
+          setResult("Couldn't hear the microphone. Check it isn't muted or blocked, then try again.");
+          return;
+        }
+        // 95th percentile of the noise, plus headroom so breathing and clicks don't count.
+        const sorted = [...got].sort((a, b) => a - b);
+        const floor = sorted[Math.floor(sorted.length * 0.95)];
+        const next = Math.min(0.9, Math.max(0.15, floor + 0.12));
+        onCalibrated(Math.round(next * 100) / 100);
+        setResult(`Room noise is about ${toDb(floor)} dB. Threshold set to ${toDb(next)} dB.`);
+      }, CALIBRATE_MS);
+    }, 1600);
+  };
+
+  const problem =
+    status && (status.state === "blocked" || status.state === "silent" || status.state === "error") ? status.message : null;
 
   return (
     <Row
-      label="Test microphone"
-      hint={error ?? (testing ? "Talk normally. The bar should pass the amber mark only while you speak." : undefined)}
+      label="Microphone level"
+      hint={
+        problem ??
+        (calibrating
+          ? "Stay quiet for 3 seconds…"
+          : (result ?? (active ? `Talk normally. The bar should pass the amber mark only while you speak.` : undefined)))
+      }
     >
-      {testing && (
+      {active && (
         <div className={styles.meter} aria-hidden="true">
-          <span style={{ width: `${Math.round(level * 100)}%` }} />
+          <span style={{ width: `${Math.round(level * 100)}%`, background: level > threshold ? "var(--ol-green)" : "var(--ol-text-3)" }} />
           <i style={{ left: `${Math.round(threshold * 100)}%` }} />
         </div>
       )}
-      <button type="button" className={styles.button} onClick={() => setTesting((t) => !t)}>
-        {testing ? "Stop" : "Test"}
+      <button type="button" className={styles.button} disabled={calibrating} onClick={calibrate}>
+        Calibrate
+      </button>
+      <button type="button" className={styles.button} disabled={calibrating} onClick={() => setActive((a) => !a)}>
+        {active ? "Stop" : "Test"}
       </button>
     </Row>
   );

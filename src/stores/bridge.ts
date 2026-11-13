@@ -6,7 +6,7 @@ import { useCode } from "./code";
 import { useIsland } from "./island";
 import { useMedia } from "./media";
 import { usePomodoro } from "./pomodoro";
-import { usePrompter } from "./prompter";
+import { usePrompter, voiceLevel } from "./prompter";
 import { useSystem } from "./system";
 
 let started = false;
@@ -40,8 +40,12 @@ export function startBridge(): void {
   void on("code://session", (sessions) => useCode.getState().setSessions(sessions));
   void on("prompter://command", (action) => usePrompter.getState().handle(action));
   void on("prompter://scripts", () => loadScripts());
-  void on("voice://level", (level) => usePrompter.getState().setLevel(level));
-  void on("voice://error", (error) => usePrompter.getState().setVoiceError(error));
+  void on("voice://level", (v) => {
+    if (v.owner !== "prompter") return;
+    voiceLevel.level = v.level;
+    voiceLevel.at = performance.now();
+  });
+  void on("voice://status", (status) => usePrompter.getState().setVoiceStatus(status));
 
   commands.mediaGet().then((m) => useMedia.getState().setMedia(m), ignore);
   commands.islandFlags().then(island.setFlags, ignore);

@@ -39,9 +39,10 @@ export interface MediaState {
 // ---------- Settings ----------
 
 export type CaptureMode = "always" | "prompterOnly" | "never";
+export type IslandPosition = "center" | "left" | "right";
 
 export interface Settings {
-  general: { monitor: string | null; hideFromCapture: CaptureMode };
+  general: { position: IslandPosition; offsetX: number; hideFromCapture: CaptureMode };
   peeks: {
     lockKeys: boolean;
     battery: boolean;
@@ -73,6 +74,10 @@ export interface Settings {
     mirror: boolean;
     width: number;
     height: number;
+    timingMode: TimingMode;
+    linesPerMinute: number;
+    durationMin: number;
+    autoFit: boolean;
     voice: boolean;
     voiceThreshold: number;
     micDevice: string | null;
@@ -80,6 +85,8 @@ export interface Settings {
     shortcuts: PrompterShortcuts;
   };
 }
+
+export type TimingMode = "speed" | "lines" | "duration";
 
 export interface PrompterShortcuts {
   toggle: string;
@@ -238,6 +245,22 @@ export interface Script {
   updatedAt: string;
 }
 
+export type VoiceOwner = "prompter" | "settings";
+export type VoiceState = "starting" | "listening" | "blocked" | "silent" | "error" | "stopped";
+
+export interface VoiceStatus {
+  owner: VoiceOwner;
+  state: VoiceState;
+  device: string | null;
+  message: string | null;
+}
+
+export interface VoiceLevel {
+  owner: VoiceOwner;
+  level: number;
+  dbfs: number;
+}
+
 export type PrompterAction =
   | "toggle"
   | "playPause"
@@ -291,9 +314,10 @@ export const commands = {
   scriptDuplicate: (id: string) => invoke<Script>("script_duplicate", { id }),
   scriptImport: () => invoke<Script | null>("script_import"),
   scriptExport: (id: string) => invoke<boolean>("script_export", { id }),
-  voiceStart: (device: string | null) => invoke<void>("voice_start", { device }),
-  voiceStop: () => invoke<void>("voice_stop"),
+  voiceStart: (owner: VoiceOwner, device: string | null) => invoke<void>("voice_start", { owner, device }),
+  voiceStop: (owner: VoiceOwner) => invoke<void>("voice_stop", { owner }),
   voiceDevices: () => invoke<string[]>("voice_devices"),
+  voicePrivacy: () => invoke<string | null>("voice_privacy"),
 
   mediaGet: () => invoke<MediaState | null>("media_get"),
   mediaPlayPause: () => invoke<void>("media_play_pause"),
@@ -321,8 +345,8 @@ export interface EventPayloads {
   "code://session": AgentSession[];
   "prompter://command": PrompterAction;
   "prompter://scripts": null;
-  "voice://level": number;
-  "voice://error": string;
+  "voice://level": VoiceLevel;
+  "voice://status": VoiceStatus;
 }
 
 export function on<K extends keyof EventPayloads>(

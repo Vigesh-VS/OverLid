@@ -1,12 +1,18 @@
 import { create } from "zustand";
 
-import { commands, run, type PrompterAction, type Script } from "../lib/ipc";
+import { commands, run, type PrompterAction, type Script, type VoiceStatus } from "../lib/ipc";
 import { useSystem } from "./system";
 
 export type PrompterStatus = "idle" | "countdown" | "presenting";
 
-const SPEED_STEP = 1.15;
+const RATE_STEP = 1.12;
 const SIZE_STEP = 2;
+
+/**
+ * Latest mic level, kept outside React so 33 updates a second never
+ * re-render anything. The scroll engine reads it every animation frame.
+ */
+export const voiceLevel = { level: 0, at: 0 };
 
 interface PrompterStore {
   status: PrompterStatus;
@@ -17,10 +23,14 @@ interface PrompterStore {
   hardPaused: boolean;
   /** Reached the end of the script. */
   ended: boolean;
-  speed: number;
+  /** Multiplier from the faster/slower shortcuts, applied to every timing mode. */
+  rate: number;
   fontSize: number;
-  level: number;
-  voiceError: string | null;
+  voiceStatus: VoiceStatus | null;
+  /** The user switched to auto-scroll for this run because the mic failed. */
+  forceAuto: boolean;
+  /** Live area size while dragging the prompter edges. */
+  area: { width: number; height: number } | null;
   /** Bumped to ask the view to jump; `dir` is -1 (previous) or +1 (next). */
   jump: { dir: -1 | 1; nonce: number } | null;
 
@@ -30,8 +40,9 @@ interface PrompterStore {
   stop: () => void;
   togglePause: () => void;
   setEnded: (ended: boolean) => void;
-  setLevel: (level: number) => void;
-  setVoiceError: (error: string | null) => void;
+  setVoiceStatus: (status: VoiceStatus) => void;
+  switchToAutoScroll: () => void;
+  setArea: (area: { width: number; height: number } | null) => void;
   handle: (action: PrompterAction) => void;
 }
 
@@ -45,10 +56,11 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
   script: null,
   hardPaused: false,
   ended: false,
-  speed: 60,
+  rate: 1,
   fontSize: 28,
-  level: 0,
-  voiceError: null,
+  voiceStatus: null,
+  forceAuto: false,
+  area: null,
   jump: null,
 
   setScripts: (scripts) =>
@@ -65,6 +77,8 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
     if (!chosen || s.status !== "idle") return;
     const prefs = useSystem.getState().settings?.prompter;
     window.clearInterval(countdownTimer);
+    voiceLevel.level = 0;
+    voiceLevel.at = 0;
     set({
       status: "countdown",
       count: 3,
@@ -72,15 +86,16 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
       selectedId: chosen.id,
       hardPaused: false,
       ended: false,
-      speed: prefs?.speed ?? 60,
+      rate: 1,
       fontSize: prefs?.fontSize ?? 28,
-      level: 0,
-      voiceError: null,
+      voiceStatus: null,
+      forceAuto: false,
+      area: null,
       jump: null,
     });
-    // Protection and shortcuts go live with the countdown.
+    // Protection and shortcuts go live with the countdown; the mic warms up during it.
     run(commands.prompterSetActive(true), "prompter_set_active");
-    if (prefs?.voice) run(commands.voiceStart(prefs.micDevice), "voice_start");
+    if (prefs?.voice) run(commands.voiceStart("prompter", prefs.micDevice), "voice_start");
 
     countdownTimer = window.setInterval(() => {
       const { count, status } = get();
@@ -101,20 +116,23 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
     const s = get();
     if (s.status === "idle") return;
     window.clearInterval(countdownTimer);
-    set({ status: "idle", script: null, level: 0 });
+    set({ status: "idle", script: null, area: null, voiceStatus: null });
     run(commands.prompterSetActive(false), "prompter_set_active");
-    run(commands.voiceStop(), "voice_stop");
+    run(commands.voiceStop("prompter"), "voice_stop");
 
     // Remember speed and size changes made with the shortcuts.
     const settings = useSystem.getState().settings;
-    if (settings && (settings.prompter.speed !== s.speed || settings.prompter.fontSize !== s.fontSize)) {
-      run(
-        commands.settingsSet({
-          ...settings,
-          prompter: { ...settings.prompter, speed: Math.round(s.speed), fontSize: s.fontSize },
-        }),
-        "settings_set",
-      );
+    if (!settings) return;
+    const p = settings.prompter;
+    const changes: Partial<typeof p> = {};
+    if (p.fontSize !== s.fontSize) changes.fontSize = s.fontSize;
+    if (s.rate !== 1) {
+      if (p.timingMode === "speed") changes.speed = Math.round(p.speed * s.rate);
+      if (p.timingMode === "lines") changes.linesPerMinute = Math.round(p.linesPerMinute * s.rate);
+      if (p.timingMode === "duration") changes.durationMin = Math.round((p.durationMin / s.rate) * 10) / 10;
+    }
+    if (Object.keys(changes).length) {
+      run(commands.settingsSet({ ...settings, prompter: { ...p, ...changes } }), "settings_set");
     }
   },
 
@@ -123,9 +141,16 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
 
   setEnded: (ended) => set(ended ? { ended, hardPaused: true } : { ended }),
 
-  setLevel: (level) => set({ level }),
+  setVoiceStatus: (voiceStatus) => {
+    if (voiceStatus.owner === "prompter") set({ voiceStatus });
+  },
 
-  setVoiceError: (voiceError) => set({ voiceError }),
+  switchToAutoScroll: () => {
+    set({ forceAuto: true });
+    run(commands.voiceStop("prompter"), "voice_stop");
+  },
+
+  setArea: (area) => set({ area }),
 
   handle: (action) => {
     const s = get();
@@ -140,10 +165,10 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
         s.togglePause();
         break;
       case "faster":
-        set({ speed: Math.min(400, s.speed * SPEED_STEP) });
+        set({ rate: Math.min(6, s.rate * RATE_STEP) });
         break;
       case "slower":
-        set({ speed: Math.max(5, s.speed / SPEED_STEP) });
+        set({ rate: Math.max(0.15, s.rate / RATE_STEP) });
         break;
       case "bigger":
         set({ fontSize: Math.min(72, s.fontSize + SIZE_STEP) });
@@ -185,4 +210,10 @@ export function parseScript(body: string): Block[] {
   }
   flush();
   return blocks;
+}
+
+/** Effective text size: fixed, or scaled with the area when auto-fit is on. */
+export function effectiveFontSize(fontSize: number, width: number, autoFit: boolean): number {
+  if (!autoFit) return fontSize;
+  return Math.round(fontSize * Math.min(2, Math.max(0.5, width / 560)));
 }

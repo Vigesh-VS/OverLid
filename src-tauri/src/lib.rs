@@ -9,12 +9,13 @@ mod system;
 mod teleprompter;
 mod tray;
 mod window;
+mod winreg;
 
 use tauri::AppHandle;
 
 /// Side effects of a settings change, applied after the new values are saved.
 pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new: &settings::Settings) {
-    if old.general.monitor != new.general.monitor {
+    if old.general.position != new.general.position || old.general.offset_x != new.general.offset_x {
         window::reposition(app);
     }
     if old.general.hide_from_capture != new.general.hide_from_capture {
@@ -58,7 +59,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             window::set_hit_rect,
             window::island_flags,
-            window::list_monitors,
             app_windows::open_settings_window,
             app_windows::autostart_get,
             app_windows::autostart_set,
@@ -99,6 +99,7 @@ pub fn run() {
             teleprompter::voice::voice_start,
             teleprompter::voice::voice_stop,
             teleprompter::voice::voice_devices,
+            teleprompter::voice::voice_privacy,
         ])
         .setup(|app| {
             let handle = app.handle();

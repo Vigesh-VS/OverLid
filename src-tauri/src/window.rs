@@ -13,7 +13,7 @@ use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
-use crate::settings::{self, CaptureMode};
+use crate::settings::{self, CaptureMode, Position};
 
 pub const ISLAND_LABEL: &str = "island";
 pub const HOVER_EVENT: &str = "island://hover";
@@ -51,15 +51,6 @@ pub struct HitState {
     flags: Mutex<IslandFlags>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorInfo {
-    pub name: String,
-    pub primary: bool,
-    pub width: u32,
-    pub height: u32,
-}
-
 #[tauri::command]
 pub fn set_hit_rect(state: tauri::State<'_, HitState>, rect: HitRect) {
     match state.rect.lock() {
@@ -71,27 +62,6 @@ pub fn set_hit_rect(state: tauri::State<'_, HitState>, rect: HitRect) {
 #[tauri::command]
 pub fn island_flags(state: tauri::State<'_, HitState>) -> IslandFlags {
     state.flags.lock().map(|f| *f).unwrap_or_default()
-}
-
-#[tauri::command]
-pub fn list_monitors(app: AppHandle) -> Vec<MonitorInfo> {
-    let Some(win) = app.get_webview_window(ISLAND_LABEL) else {
-        return Vec::new();
-    };
-    let primary = win.primary_monitor().ok().flatten().and_then(|m| m.name().cloned());
-    win.available_monitors()
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|m| {
-            let name = m.name()?.clone();
-            Some(MonitorInfo {
-                primary: primary.as_ref() == Some(&name),
-                width: m.size().width,
-                height: m.size().height,
-                name,
-            })
-        })
-        .collect()
 }
 
 pub fn setup(app: &AppHandle) -> anyhow::Result<()> {
@@ -109,42 +79,37 @@ fn island(app: &AppHandle) -> anyhow::Result<WebviewWindow> {
         .context("island window missing")
 }
 
-/// Anchor the window to the top centre of the chosen (or primary) monitor.
+/// Anchor the window to the main monitor's top edge: centre, left or right
+/// corner, nudged by the horizontal offset. The frontend aligns the island
+/// inside the window to match.
 pub fn reposition(app: &AppHandle) {
     let result = island(app).and_then(|win| {
-        let wanted = settings::current(app).general.monitor;
-        let monitor = pick_monitor(&win, wanted.as_deref())?;
-        place(&win, &monitor)
+        let monitor = match win.primary_monitor()? {
+            Some(m) => m,
+            None => win.current_monitor()?.context("no monitor found")?,
+        };
+        place(&win, &monitor, &settings::current(app).general)
     });
     if let Err(e) = result {
         log::error!("positioning island failed: {e:#}");
     }
 }
 
-fn pick_monitor(win: &WebviewWindow, wanted: Option<&str>) -> anyhow::Result<Monitor> {
-    if let Some(name) = wanted
-        && let Some(m) = win
-            .available_monitors()?
-            .into_iter()
-            .find(|m| m.name().map(String::as_str) == Some(name))
-    {
-        return Ok(m);
-    }
-    match win.primary_monitor()? {
-        Some(m) => Ok(m),
-        None => win.current_monitor()?.context("no monitor found"),
-    }
-}
-
-fn place(win: &WebviewWindow, monitor: &Monitor) -> anyhow::Result<()> {
+fn place(win: &WebviewWindow, monitor: &Monitor, general: &settings::General) -> anyhow::Result<()> {
     let scale = monitor.scale_factor();
-    let width = (WINDOW_W * scale).round() as u32;
+    let width = (WINDOW_W * scale).round() as i32;
     let height = (WINDOW_H * scale).round() as u32;
     let origin = monitor.position();
-    let x = origin.x + (monitor.size().width as i32 - width as i32) / 2;
+    let monitor_w = monitor.size().width as i32;
+    let offset = (f64::from(general.offset_x) * scale).round() as i32;
+    let x = match general.position {
+        Position::Center => origin.x + (monitor_w - width) / 2 + offset,
+        Position::Left => origin.x + offset.max(0),
+        Position::Right => origin.x + monitor_w - width - offset.max(0),
+    };
     // Move first so the window picks up the target monitor's DPI, then size.
     win.set_position(PhysicalPosition::new(x, origin.y))?;
-    win.set_size(PhysicalSize::new(width, height))?;
+    win.set_size(PhysicalSize::new(width.max(1) as u32, height))?;
     win.set_position(PhysicalPosition::new(x, origin.y))?;
     Ok(())
 }

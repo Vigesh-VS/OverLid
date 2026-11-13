@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { commands, type CaptureMode, type MonitorInfo } from "../../lib/ipc";
-import { Choice, Group, Select, Toggle } from "../controls";
+import { commands, type CaptureMode, type IslandPosition } from "../../lib/ipc";
+import { Choice, Group, Slider, Toggle } from "../controls";
 import { section, useSettingsStore } from "../useSettings";
+
+const POSITIONS: ReadonlyArray<{ value: IslandPosition; label: string }> = [
+  { value: "left", label: "Top left" },
+  { value: "center", label: "Top centre" },
+  { value: "right", label: "Top right" },
+];
 
 const CAPTURE: ReadonlyArray<{ value: CaptureMode; label: string }> = [
   { value: "always", label: "Always" },
@@ -13,34 +19,34 @@ const CAPTURE: ReadonlyArray<{ value: CaptureMode; label: string }> = [
 export function GeneralTab() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
-  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [autostart, setAutostart] = useState(false);
 
   useEffect(() => {
-    commands.listMonitors().then(setMonitors, () => undefined);
     commands.autostartGet().then(setAutostart, () => undefined);
   }, []);
 
   if (!settings) return null;
   const { general, peeks } = settings;
 
-  const monitorOptions = [
-    { value: "", label: "Primary display" },
-    ...monitors.map((m) => ({
-      value: m.name,
-      label: `${m.name.replace(/^\\\\\.\\/, "")} · ${m.width}×${m.height}${m.primary ? " (primary)" : ""}`,
-    })),
-  ];
-
   return (
     <>
       <Group title="Island">
-        <Select
-          label="Show on"
-          hint="The island sits at the top centre of this display."
-          value={general.monitor ?? ""}
-          options={monitorOptions}
-          onChange={(v) => update(section("general", { monitor: v || null }))}
+        <Choice
+          label="Position"
+          hint="On your main display. In a corner the island sits flush with the screen edge."
+          value={general.position}
+          options={POSITIONS}
+          onChange={(v) => update(section("general", { position: v, offsetX: 0 }))}
+        />
+        <Slider
+          label="Horizontal offset"
+          hint={general.position === "center" ? "Nudge left or right of centre." : "Move in from the corner."}
+          value={general.offsetX}
+          min={general.position === "center" ? -400 : 0}
+          max={400}
+          step={2}
+          format={(v) => `${v > 0 && general.position === "center" ? "+" : ""}${v} px`}
+          onChange={(v) => update(section("general", { offsetX: v }))}
         />
         <Choice
           label="Hide from screen share and recordings"
