@@ -323,8 +323,11 @@ export const commands = {
   openSettings: () => invoke<void>("open_settings_window"),
   autostartGet: () => invoke<boolean>("autostart_get"),
   autostartSet: (enabled: boolean) => invoke<boolean>("autostart_set", { enabled }),
-  openRepo: () => invoke<void>("open_repo"),
+  openLink: (kind: "repo" | "star" | "bug" | "feature" | "discussions" | "releases" | "sponsor") =>
+    invoke<void>("open_link", { kind }),
   appVersion: () => invoke<string>("app_version"),
+  pickExe: () => invoke<string | null>("pick_exe"),
+  pickFolder: () => invoke<string | null>("pick_folder"),
 
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsSet: (settings: Settings) => invoke<Settings>("settings_set", { settings }),

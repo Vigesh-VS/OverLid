@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
 
-import { commands } from "../../lib/ipc";
+import { Logo } from "../../components/Logo";
+import { commands, run } from "../../lib/ipc";
 import { Group, Row } from "../controls";
 import styles from "../Settings.module.css";
+
+type LinkKind = Parameters<typeof commands.openLink>[0];
+
+const LINKS: ReadonlyArray<{ kind: LinkKind; label: string; hint: string; primary?: boolean }> = [
+  { kind: "star", label: "⭐ Star on GitHub", hint: "Helps other people find Overlid.", primary: true },
+  { kind: "repo", label: "Open on GitHub", hint: "Source code and releases." },
+  { kind: "bug", label: "Report a bug", hint: "Opens a new issue with the bug template." },
+  { kind: "feature", label: "Request a feature", hint: "Opens a new issue with the feature template." },
+  { kind: "discussions", label: "Discussions", hint: "Questions, ideas and show-and-tell." },
+  { kind: "sponsor", label: "Sponsor", hint: "Support development on GitHub Sponsors." },
+];
 
 export function AboutTab() {
   const [version, setVersion] = useState("");
@@ -13,18 +25,29 @@ export function AboutTab() {
 
   return (
     <>
-      <Group
-        title="Overlid"
-        note="A Dynamic-Island-style notch for Windows: media, system stats, a focus timer, Claude Code status and a teleprompter. Open source under the MIT licence. No telemetry."
-      >
-        <Row label="Version">
-          <span>{version || "…"}</span>
-        </Row>
-        <Row label="Source code" hint="github.com/Vigesh-VS/OverLid">
-          <button type="button" className={styles.button} onClick={() => void commands.openRepo()}>
-            Open on GitHub
-          </button>
-        </Row>
+      <div className={styles.aboutHero}>
+        <Logo variant="metallic" size={88} label="Overlid logo" />
+        <div>
+          <h1>Overlid {version && <span className={styles.version}>v{version}</span>}</h1>
+          <p>
+            A dynamic island for Windows with AI coding status and a notch teleprompter. Open source under the MIT licence.
+            No telemetry.
+          </p>
+        </div>
+      </div>
+
+      <Group title="Get involved" note="All support goes through GitHub.">
+        {LINKS.map((l) => (
+          <Row key={l.kind} label={l.label} hint={l.hint}>
+            <button
+              type="button"
+              className={l.primary ? styles.primaryButton : styles.button}
+              onClick={() => run(commands.openLink(l.kind), "open_link")}
+            >
+              Open
+            </button>
+          </Row>
+        ))}
       </Group>
 
       <Group title="Inspired by" note="Ideas only; no code was copied. Thank you to these MIT-licensed projects.">
@@ -37,10 +60,19 @@ export function AboutTab() {
 
       <Group title="Privacy">
         <ul className={styles.credits}>
-          <li>The only network call is Claude's usage endpoint, made with the sign-in Claude Code already saved.</li>
+          <li>No telemetry and no accounts.</li>
+          <li>
+            Usage is only fetched for AI tools you connect, using the sign-in their own CLI already saved, read-only, sent
+            only to that provider's usage endpoint.
+          </li>
           <li>Microphone audio is measured for loudness in memory and never recorded or sent.</li>
+          <li>Live screen colour (teleprompter background) is sampled in memory only and never saved or sent.</li>
           <li>Caps Lock and Num Lock are read with GetKeyState. There is no keyboard hook.</li>
         </ul>
+      </Group>
+
+      <Group title="Brand">
+        <p className={styles.groupNote}>The Overlid name and logo are © 2026 Vigesh and aren't covered by the MIT licence.</p>
       </Group>
     </>
   );

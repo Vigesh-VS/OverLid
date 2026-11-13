@@ -59,7 +59,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            Some(vec![app_windows::AUTOSTART_ARG]),
         ))
         .plugin(teleprompter::plugin())
         .manage(window::HitState::default())
@@ -70,7 +70,9 @@ pub fn run() {
             foreground::list_running_apps,
             app_windows::autostart_get,
             app_windows::autostart_set,
-            app_windows::open_repo,
+            app_windows::open_link,
+            app_windows::pick_exe,
+            app_windows::pick_folder,
             app_windows::app_version,
             settings::settings_get,
             settings::settings_set,
@@ -131,6 +133,7 @@ pub fn run() {
             codenotch::hook_server::start(handle);
             codenotch::start(handle);
             teleprompter::init(handle);
+            app_windows::on_launch(handle);
             Ok(())
         })
         .run(tauri::generate_context!());

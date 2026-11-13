@@ -2,17 +2,45 @@
   height: 100vh;
   display: flex;
   font-size: 14px;
+  overflow: hidden;
 }
 
 .sidebar {
-  width: 200px;
   flex-shrink: 0;
   box-sizing: border-box;
   padding: 20px 12px;
-  border-right: 1px solid var(--ol-settings-line);
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Drag to resize the sidebar; the width is remembered. */
+.divider {
+  flex-shrink: 0;
+  width: 7px;
+  margin: 0 -3px;
+  position: relative;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: var(--ol-settings-line);
+  transition: background 120ms ease;
+}
+
+.divider:hover::before,
+.divider:focus-visible::before {
+  background: var(--ol-text-3);
 }
 
 .brand {
@@ -24,17 +52,13 @@
   font-weight: 600;
 }
 
-/* A tiny notch: the brand mark is the product itself. */
-.brandPill {
-  width: 26px;
-  height: 9px;
-  border-radius: 0 0 6px 6px;
-  background: var(--ol-text);
-}
 
 .nav,
 .navOn {
-  height: 34px;
+  min-height: 34px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 0 10px;
   border: 0;
   border-radius: 8px;
@@ -60,11 +84,13 @@
   flex-grow: 1;
   min-width: 0;
   overflow-y: auto;
+  /* Only vertical scrolling: content reflows instead. */
+  overflow-x: hidden;
   box-sizing: border-box;
 }
 
 .main {
-  padding: 28px 36px 48px;
+  padding: 28px clamp(16px, 4vw, 36px) 48px;
 }
 
 .mainFull {
@@ -83,7 +109,8 @@
 }
 
 .group {
-  max-width: 640px;
+  max-width: 680px;
+  min-width: 0;
   margin-bottom: 32px;
 }
 
@@ -109,9 +136,10 @@
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 8px 24px;
   min-height: 52px;
   padding: 10px 16px;
   box-sizing: border-box;
@@ -122,10 +150,12 @@
 }
 
 .rowText {
+  flex: 1 1 200px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .rowLabel {
@@ -139,9 +169,13 @@
 }
 
 .rowControl {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -186,7 +220,7 @@
 }
 
 .slider input {
-  width: 180px;
+  width: clamp(110px, 22vw, 200px);
   accent-color: var(--ol-text);
 }
 
@@ -227,19 +261,22 @@
 }
 
 .text {
-  width: 220px;
+  width: min(220px, 100%);
   height: 32px;
   padding: 0 10px;
 }
 
 .select {
   height: 32px;
-  min-width: 220px;
+  width: min(260px, 100%);
+  min-width: 0;
   padding: 0 8px;
 }
 
 .segmented {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   padding: 3px;
   border-radius: 10px;
   background: var(--ol-surface);
@@ -377,7 +414,7 @@
 }
 
 .scriptList {
-  width: 260px;
+  width: clamp(180px, 28%, 280px);
   flex-shrink: 0;
   border-right: 1px solid var(--ol-settings-line);
   display: flex;
@@ -540,4 +577,117 @@
   padding-left: 18px;
   color: var(--ol-text-2);
   line-height: 1.7;
+}
+
+/* ---------- Welcome ---------- */
+
+.welcome {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.welcomeInner {
+  box-sizing: border-box;
+  width: min(640px, 100%);
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.welcomeInner > .group {
+  width: 100%;
+  margin: 8px 0 4px;
+}
+
+.welcomeTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.welcomeLead {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--ol-text-2);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  max-width: 680px;
+}
+
+.aboutHero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.aboutHero h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.aboutHero p {
+  margin: 0;
+  color: var(--ol-text-2);
+  max-width: 52ch;
+  line-height: 1.5;
+}
+
+.version {
+  margin-left: 6px;
+  color: var(--ol-text-3);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.editorBar {
+  flex-wrap: wrap;
+}
+
+.titleInput {
+  min-width: 160px;
+}
+
+.iconPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 320px;
+}
+
+.iconChoice,
+.iconOn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--ol-settings-line);
+  border-radius: 8px;
+  background: var(--ol-surface);
+  color: var(--ol-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconChoice:hover {
+  color: var(--ol-text);
+}
+
+.iconOn {
+  border-color: var(--ol-text);
+  background: var(--ol-surface-raised);
+  color: var(--ol-text);
 }

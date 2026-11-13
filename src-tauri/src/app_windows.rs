@@ -2,9 +2,14 @@
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_dialog::DialogExt;
 
 pub const SETTINGS_LABEL: &str = "settings";
-const REPO_URL: &str = "https://github.com/Vigesh-VS/OverLid";
+/// Passed by the Start-with-Windows entry so login launches stay quiet.
+pub const AUTOSTART_ARG: &str = "--autostart";
+/// The one place the project URL lives. All support goes through GitHub.
+pub const REPO_URL: &str = "https://github.com/Vigesh-VS/overlid";
+const SPONSOR_URL: &str = "https://github.com/sponsors/Vigesh-VS";
 
 /// Show the Settings window, creating it on first use.
 pub fn open_settings(app: &AppHandle) {
@@ -27,6 +32,21 @@ pub fn open_settings(app: &AppHandle) {
     .build();
     if let Err(e) = built {
         log::error!("couldn't open settings: {e}");
+    }
+}
+
+/// A normal launch (Start menu, shortcut) opens the home/settings window so
+/// it's obvious Overlid is running; a login launch just starts the island.
+pub fn on_launch(app: &AppHandle) {
+    let launcher = app.autolaunch();
+    // Re-register so older entries pick up the --autostart argument.
+    if launcher.is_enabled().unwrap_or(false)
+        && let Err(e) = launcher.enable()
+    {
+        log::debug!("refreshing autostart entry failed: {e}");
+    }
+    if !std::env::args().any(|a| a == AUTOSTART_ARG) {
+        open_settings(app);
     }
 }
 
@@ -58,15 +78,52 @@ pub fn set_autostart(app: &AppHandle, enabled: bool) -> Result<bool, String> {
     Ok(launcher.is_enabled().unwrap_or(enabled))
 }
 
-/// Open the project page in the default browser. The URL is fixed.
+/// Open one of the project's GitHub pages. Only these fixed links can be opened.
 #[tauri::command]
-pub fn open_repo() {
-    if let Err(e) = std::process::Command::new("explorer").arg(REPO_URL).spawn() {
-        log::warn!("opening the repo page failed: {e}");
-    }
+pub fn open_link(kind: String) -> Result<(), String> {
+    let url = match kind.as_str() {
+        "repo" | "star" => REPO_URL.to_owned(),
+        "bug" => format!("{REPO_URL}/issues/new?template=bug_report.yml"),
+        "feature" => format!("{REPO_URL}/issues/new?template=feature_request.yml"),
+        "discussions" => format!("{REPO_URL}/discussions"),
+        "releases" => format!("{REPO_URL}/releases"),
+        "sponsor" => SPONSOR_URL.to_owned(),
+        other => return Err(format!("unknown link {other}")),
+    };
+    std::process::Command::new("explorer")
+        .arg(&url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| {
+            log::warn!("opening {url} failed: {e}");
+            "couldn't open the browser".to_owned()
+        })
 }
 
 #[tauri::command]
 pub fn app_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
+}
+
+/// Pick an .exe (for selected apps and the quick action). Returns its path.
+#[tauri::command]
+pub async fn pick_exe(app: AppHandle) -> Option<String> {
+    app.dialog()
+        .file()
+        .set_title("Choose an app")
+        .add_filter("Apps", &["exe"])
+        .blocking_pick_file()
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.display().to_string())
+}
+
+/// Pick a folder (for the quick action). Returns its path.
+#[tauri::command]
+pub async fn pick_folder(app: AppHandle) -> Option<String> {
+    app.dialog()
+        .file()
+        .set_title("Choose a folder")
+        .blocking_pick_folder()
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.display().to_string())
 }

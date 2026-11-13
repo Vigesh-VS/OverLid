@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Overlid logo">
+<g fill="none" stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
+<path d="M190 492 C190 378 282 286 396 286 H450 C468 286 478 296 488 310 C496 321 506 326 520 326 H576 C590 326 600 321 608 310 C618 296 628 286 646 286 H700 C814 286 906 378 906 492" stroke-width="24"/>
+<rect x="216" y="420" width="592" height="270" rx="135" stroke-width="22"/>
+</g>
+<g fill="#111111">
+<rect x="304" y="542" width="16" height="38" rx="8"/><rect x="334" y="516" width="17" height="90" rx="8.5"/>
+<rect x="367" y="492" width="18" height="138" rx="9"/><rect x="402" y="516" width="17" height="90" rx="8.5"/>
+<rect x="434" y="542" width="16" height="38" rx="8"/>
+<rect x="490" y="516" width="178" height="22" rx="11"/><rect x="490" y="574" width="126" height="22" rx="11"/>
+<circle cx="730" cy="555" r="27"/>
+</g></svg>
