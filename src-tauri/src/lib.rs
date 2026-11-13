@@ -1,3 +1,4 @@
+mod app_windows;
 mod codenotch;
 mod fullscreen;
 mod media;
@@ -36,6 +37,10 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
+        // Must be first: a second launch just opens Settings in the running app.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            app_windows::open_settings(app);
+        }))
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
@@ -44,12 +49,21 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(teleprompter::plugin())
         .manage(window::HitState::default())
         .invoke_handler(tauri::generate_handler![
             window::set_hit_rect,
             window::island_flags,
             window::list_monitors,
+            app_windows::open_settings_window,
+            app_windows::autostart_get,
+            app_windows::autostart_set,
+            app_windows::open_repo,
+            app_windows::app_version,
             settings::settings_get,
             settings::settings_set,
             media::media_get,

@@ -1,0 +1,176 @@
+.grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  min-width: 0;
+  padding: 14px 16px 16px;
+  border-radius: var(--ol-card-radius);
+  background: var(--ol-surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--ol-fs-sm);
+  min-width: 0;
+}
+
+.tileHead > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.tileTitle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-sm);
+  font-weight: 600;
+}
+
+.tileTitle:hover {
+  color: var(--ol-text);
+}
+
+.tileTitle:focus-visible,
+.play:focus-visible,
+.pill:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 2px;
+}
+
+.media {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.art {
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.lines {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lines span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.big {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-sm);
+}
+
+.good {
+  color: var(--ol-green);
+}
+
+.warn {
+  color: var(--ol-amber);
+}
+
+.play {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ol-text);
+  color: var(--ol-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pill {
+  height: 32px;
+  padding: 0 14px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ol-surface-raised);
+  font-size: var(--ol-fs-sm);
+  font-weight: 600;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.barHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--ol-fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--ol-track);
+  overflow: hidden;
+}
+
+.track span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

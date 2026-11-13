@@ -255,6 +255,12 @@ export const commands = {
   islandFlags: () => invoke<IslandFlags>("island_flags"),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
 
+  openSettings: () => invoke<void>("open_settings_window"),
+  autostartGet: () => invoke<boolean>("autostart_get"),
+  autostartSet: (enabled: boolean) => invoke<boolean>("autostart_set", { enabled }),
+  openRepo: () => invoke<void>("open_repo"),
+  appVersion: () => invoke<string>("app_version"),
+
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsSet: (settings: Settings) => invoke<Settings>("settings_set", { settings }),
 

@@ -1,15 +1,24 @@
+import type { ReactNode } from "react";
+
+import { GearIcon } from "../../components/icons";
+import { commands, run } from "../../lib/ipc";
 import { PANELS, useIsland, type PanelId } from "../../stores/island";
 import { Clock } from "../compact/Clock";
-import styles from "./ExpandedShell.module.css";
 import { CodePanel } from "./CodePanel";
+import styles from "./ExpandedShell.module.css";
 import { FocusPanel } from "./FocusPanel";
+import { HomePanel } from "./HomePanel";
 import { MediaPanel } from "./MediaPanel";
 import { PrompterPanel } from "./PrompterPanel";
 import { StatsPanel } from "./StatsPanel";
 
-// Placeholder copy until each module lands (SPEC §12).
-const COMING: Partial<Record<PanelId, string>> = {
-  home: "A summary of every module will show here.",
+const PANEL_VIEWS: Record<PanelId, () => ReactNode> = {
+  home: () => <HomePanel />,
+  media: () => <MediaPanel />,
+  code: () => <CodePanel />,
+  prompter: () => <PrompterPanel />,
+  focus: () => <FocusPanel />,
+  stats: () => <StatsPanel />,
 };
 
 export function ExpandedShell() {
@@ -32,24 +41,19 @@ export function ExpandedShell() {
         ))}
         <span className={styles.spacer} />
         <Clock className={styles.clock} />
+        <button
+          type="button"
+          className={styles.gear}
+          aria-label="Settings"
+          title="Settings"
+          onClick={() => run(commands.openSettings(), "open_settings_window")}
+        >
+          <GearIcon size={16} />
+        </button>
       </nav>
 
       <section className={styles.body} aria-label={PANELS.find((p) => p.id === panel)?.label}>
-        {panel === "media" ? (
-          <MediaPanel />
-        ) : panel === "prompter" ? (
-          <PrompterPanel />
-        ) : panel === "code" ? (
-          <CodePanel />
-        ) : panel === "focus" ? (
-          <FocusPanel />
-        ) : panel === "stats" ? (
-          <StatsPanel />
-        ) : (
-          <div className={styles.placeholder}>
-            <p className={styles.coming}>{COMING[panel]}</p>
-          </div>
-        )}
+        {PANEL_VIEWS[panel]()}
       </section>
     </div>
   );

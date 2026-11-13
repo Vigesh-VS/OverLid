@@ -55,17 +55,24 @@
   min-height: 0;
 }
 
-.placeholder {
-  height: 100%;
+.gear {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--ol-tab-radius);
+  background: transparent;
+  color: var(--ol-text-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--ol-card-radius);
-  background: var(--ol-surface);
 }
 
-.coming {
-  margin: 0;
-  color: var(--ol-text-2);
-  font-size: var(--ol-fs-md);
+.gear:hover {
+  color: var(--ol-text);
+  background: var(--ol-surface-raised);
+}
+
+.gear:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 1px;
 }

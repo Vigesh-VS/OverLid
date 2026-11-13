@@ -22,3 +22,13 @@ button {
   font: inherit;
   color: inherit;
 }
+
+/* The settings window is a normal opaque window. */
+:root[data-window="settings"] {
+  color-scheme: dark;
+}
+
+:root[data-window="settings"] body {
+  background: var(--ol-settings-bg);
+  user-select: auto;
+}

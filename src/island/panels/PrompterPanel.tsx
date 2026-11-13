@@ -24,7 +24,14 @@ export function PrompterPanel() {
         {scripts.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyTitle}>No scripts yet</span>
-            <span className={styles.emptyHint}>Write one in Settings › Scripts, or import a .txt or .md file.</span>
+            <span className={styles.emptyHint}>Write one in Settings, or import a .txt or .md file.</span>
+            <button
+              type="button"
+              className={styles.openSettings}
+              onClick={() => run(commands.openSettings(), "open_settings_window")}
+            >
+              Open Settings
+            </button>
           </div>
         ) : (
           <div className={styles.rows} role="listbox" aria-label="Scripts">

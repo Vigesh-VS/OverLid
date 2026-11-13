@@ -13,6 +13,11 @@
   --ol-red: #ff5b4f;
   --ol-green: #3dd68c;
 
+  /* Settings window */
+  --ol-settings-bg: #0c0c0d;
+  --ol-settings-line: #232326;
+  --ol-focus: #8ab4ff;
+
   /* Type */
   --ol-font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --ol-fs-xs: 11px;
