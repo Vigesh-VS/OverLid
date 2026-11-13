@@ -1,0 +1,44 @@
+/* Overlid design tokens. Re-theme the whole island from here.
+   Source: design/mockups/*.dc.html */
+:root {
+  /* Colour */
+  --ol-black: #000000;
+  --ol-surface: #111113;
+  --ol-surface-raised: #1c1c1f;
+  --ol-track: #2a2a2d;
+  --ol-text: #ffffff;
+  --ol-text-2: #a1a1a6;
+  --ol-text-3: #8a8a8f;
+  --ol-amber: #ffb224;
+  --ol-red: #ff5b4f;
+  --ol-green: #3dd68c;
+
+  /* Type */
+  --ol-font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --ol-fs-xs: 11px;
+  --ol-fs-sm: 12px;
+  --ol-fs-tab: 12.5px;
+  --ol-fs-md: 13px;
+  --ol-fs-lg: 15px;
+
+  /* Collapsed pill */
+  --ol-pill-w: 200px;
+  --ol-pill-h: 34px;
+  --ol-pill-radius: 17px;
+  --ol-pill-ear: 12px;
+
+  /* Expanded island */
+  --ol-expanded-w: 680px;
+  --ol-expanded-h: 236px;
+  --ol-expanded-radius: 32px;
+  --ol-expanded-ear: 18px;
+  --ol-tab-h: 30px;
+  --ol-tab-radius: 9px;
+  --ol-card-radius: 18px;
+
+  /* Motion (unitless; read by src/styles/tokens.ts) */
+  --ol-spring-stiffness: 400;
+  --ol-spring-damping: 30;
+  --ol-hover-in-ms: 120;
+  --ol-hover-out-ms: 400;
+}

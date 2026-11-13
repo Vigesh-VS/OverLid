@@ -1,0 +1,61 @@
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.island {
+  position: relative;
+  background: var(--ol-black);
+  pointer-events: auto;
+}
+
+/* Clips content while the island grows; ears sit outside it. */
+.clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.earLeft,
+.earRight {
+  position: absolute;
+  top: 0;
+}
+
+.earLeft {
+  right: 100%;
+}
+
+.earRight {
+  left: 100%;
+}
+
+.compact {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillClock {
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Laid out at full expanded size so nothing reflows while the island grows. */
+.expanded {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--ol-expanded-w);
+  height: var(--ol-expanded-h);
+  margin-left: calc(var(--ol-expanded-w) / -2);
+}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Collapsed pill states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#A1A1A6}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1040px; height: 428px; box-sizing: border-box; padding: 32px; background: #121316; font-family: Inter, system-ui, sans-serif; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+
+  <div style="position: relative; height: 170px; background: #2E3138; border-radius: 12px; overflow: hidden">
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 200px; height: 34px; background: #000000; border-radius: 0 0 17px 17px; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; left: -12px"><path d="M0 0 H12 V12 A12 12 0 0 0 0 0 Z" fill="#000000"></path></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; right: -12px"><path d="M12 0 H0 V12 A12 12 0 0 1 12 0 Z" fill="#000000"></path></svg>
+      <span style="color: #FFFFFF; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em">14:32</span>
+    </div>
+    <div style="position: absolute; left: 20px; bottom: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span style="color: #FFFFFF; font-size: 13px; font-weight: 600">Idle</span>
+      <span style="color: #C4C6CC; font-size: 12px">200 × 34 · clock only · radius 17</span>
+    </div>
+  </div>
+
+  <div style="position: relative; height: 170px; background: #2E3138; border-radius: 12px; overflow: hidden">
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 200px; height: 34px; box-sizing: border-box; padding: 0 12px; background: #000000; border-radius: 0 0 17px 17px; display: flex; align-items: center; justify-content: space-between">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; left: -12px"><path d="M0 0 H12 V12 A12 12 0 0 0 0 0 Z" fill="#000000"></path></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; right: -12px"><path d="M12 0 H0 V12 A12 12 0 0 1 12 0 Z" fill="#000000"></path></svg>
+      <div style="width: 20px; height: 20px; border-radius: 5px; background: {{accent}}"></div>
+      <div aria-hidden="true" style="display: flex; align-items: center; gap: 2px; height: 14px">
+        <div style="width: 3px; height: 6px; border-radius: 2px; background: {{accent}}"></div>
+        <div style="width: 3px; height: 13px; border-radius: 2px; background: {{accent}}"></div>
+        <div style="width: 3px; height: 9px; border-radius: 2px; background: {{accent}}"></div>
+        <div style="width: 3px; height: 14px; border-radius: 2px; background: {{accent}}"></div>
+      </div>
+    </div>
+    <div style="position: absolute; left: 20px; bottom: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span style="color: #FFFFFF; font-size: 13px; font-weight: 600">Media playing</span>
+      <span style="color: #C4C6CC; font-size: 12px">Mini art left, live bars right, both in the album accent. Camera zone stays empty.</span>
+    </div>
+  </div>
+
+  <div style="position: relative; height: 170px; background: #2E3138; border-radius: 12px; overflow: hidden">
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 200px; height: 34px; box-sizing: border-box; padding: 0 12px; background: #000000; border-radius: 0 0 17px 17px; display: flex; align-items: center; justify-content: space-between">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; left: -12px"><path d="M0 0 H12 V12 A12 12 0 0 0 0 0 Z" fill="#000000"></path></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; right: -12px"><path d="M12 0 H0 V12 A12 12 0 0 1 12 0 Z" fill="#000000"></path></svg>
+      <div style="display: flex; align-items: center; gap: 6px">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="transform: rotate(-90deg)"><circle cx="8" cy="8" r="6" fill="none" stroke="#2A2A2D" stroke-width="2.5"></circle><circle cx="8" cy="8" r="6" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="37.7" stroke-dashoffset="9.4"></circle></svg>
+        <span style="color: #FFFFFF; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">18:42</span>
+      </div>
+      <svg role="img" aria-label="Claude session busy" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#2A2A2D" stroke-width="2"></circle><path d="M8 2 A6 6 0 0 1 14 8" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"></path></svg>
+    </div>
+    <div style="position: absolute; left: 20px; bottom: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span style="color: #FFFFFF; font-size: 13px; font-weight: 600">Focus running + Claude busy</span>
+      <span style="color: #C4C6CC; font-size: 12px">Priority: Pomodoro › Claude › media › clock. Max two indicators.</span>
+    </div>
+  </div>
+
+  <div style="position: relative; height: 170px; background: #2E3138; border-radius: 12px; overflow: hidden">
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 200px; height: 34px; box-sizing: border-box; padding: 0 12px; background: #000000; border-radius: 0 0 17px 17px; display: flex; align-items: center; justify-content: space-between">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; left: -12px"><path d="M0 0 H12 V12 A12 12 0 0 0 0 0 Z" fill="#000000"></path></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" style="position: absolute; top: 0; right: -12px"><path d="M12 0 H0 V12 A12 12 0 0 1 12 0 Z" fill="#000000"></path></svg>
+      <div style="display: flex; align-items: center; gap: 7px">
+        <div style="width: 7px; height: 7px; border-radius: 50%; background: #FFB224; box-shadow: 0 0 0 3px rgba(255, 178, 36, 0.25)"></div>
+        <span style="color: #FFB224; font-size: 12px; font-weight: 600">waiting</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="transform: rotate(-90deg)"><circle cx="8" cy="8" r="6" fill="none" stroke="#2A2A2D" stroke-width="2.5"></circle><circle cx="8" cy="8" r="6" fill="none" stroke="#FFB224" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="37.7" stroke-dashoffset="6"></circle></svg>
+        <span style="color: #FFB224; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums">84%</span>
+      </div>
+    </div>
+    <div style="position: absolute; left: 20px; bottom: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span style="color: #FFFFFF; font-size: 13px; font-weight: 600">Claude waiting + usage ≥ 80 %</span>
+      <span style="color: #C4C6CC; font-size: 12px">Amber dot pulses. Usage ring only appears at 80 % or more.</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#E8743B","options":["#E8743B","#4F8CFF","#3DD68C","#D45BD9"]},"$preview":{"width":1040,"height":428}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#E8743B' };
+  }
+}
+</script>
+</body>
+</html>

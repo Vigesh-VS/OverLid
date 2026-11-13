@@ -1,0 +1,24 @@
+@import "./tokens.css";
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  /* The island window is transparent; only the pill paints. */
+  background: transparent;
+}
+
+body {
+  font-family: var(--ol-font);
+  color: var(--ol-text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
