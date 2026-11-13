@@ -35,7 +35,19 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "publisher": "Vigesh",
+    "copyright": "© 2026 Vigesh. MIT licensed.",
+    "category": "Utility",
+    "shortDescription": "A Dynamic-Island-style notch for Windows",
+    "longDescription": "Overlid adds a notch to the top of your screen with media controls, system stats, a Pomodoro timer, Claude Code usage and session status, and a teleprompter that scrolls right under your webcam.",
+    "homepage": "https://github.com/Vigesh-VS/OverLid",
+    "license": "MIT",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

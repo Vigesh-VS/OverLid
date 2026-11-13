@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in Overlid isn't working
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - Island (hover, click-through, animation)
+        - Media
+        - System stats / peeks
+        - Full-screen hiding
+        - Focus timer
+        - Claude usage
+        - Claude sessions / hooks
+        - Teleprompter
+        - Settings / tray / autostart
+        - Installer
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Overlid version
+      description: Settings › About
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and display scaling
+      placeholder: "Windows 11 24H2, 150 %, two monitors"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        From %APPDATA%\com.vigesh.overlid\logs (or %LOCALAPPDATA%\com.vigesh.overlid\logs).
+        Please check they contain nothing private before pasting.
+      render: text
