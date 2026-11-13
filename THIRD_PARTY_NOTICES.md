@@ -20,7 +20,7 @@ Overlid is built on open-source libraries. Their licences are included in their 
 
 **Rust:** tauri and its official plugins (log, store, global-shortcut, autostart, single-instance, notification, dialog), windows (Microsoft), sysinfo, cpal, reqwest, rustls, serde, serde_json, chrono, tiny_http, tokio, base64, dirs, anyhow, thiserror, log. All MIT and/or Apache-2.0.
 
-**JavaScript:** react, react-dom, framer-motion, zustand, @tauri-apps/api, vite, typescript. All MIT, apart from TypeScript (Apache-2.0).
+**JavaScript:** react, react-dom, framer-motion, zustand, @tauri-apps/api, mammoth (BSD-2-Clause), pdfjs-dist (Apache-2.0), vite, typescript. All MIT unless noted; TypeScript is Apache-2.0.
 
 To list every dependency with its licence:
 

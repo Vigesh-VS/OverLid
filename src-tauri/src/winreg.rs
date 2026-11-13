@@ -44,7 +44,6 @@ pub fn read_string(root: Root, subkey: &str, value: &str) -> Option<String> {
     Some(text.trim_end_matches('\0').to_owned())
 }
 
-#[allow(dead_code)] // used by the tray theme watcher
 pub fn read_dword(root: Root, subkey: &str, value: &str) -> Option<u32> {
     let (subkey, value) = (HSTRING::from(subkey), HSTRING::from(value));
     let mut data = 0u32;
@@ -66,7 +65,6 @@ pub fn read_dword(root: Root, subkey: &str, value: &str) -> Option<u32> {
 
 /// Block until a value under `subkey` changes. Returns false if the key
 /// can't be watched (callers should then fall back to polling).
-#[allow(dead_code)] // used by the tray theme watcher
 pub fn wait_for_change(root: Root, subkey: &str) -> bool {
     let subkey = HSTRING::from(subkey);
     let mut key = HKEY::default();

@@ -38,4 +38,4 @@ Use conventional commit messages, for example `feat(media): show podcast chapter
 
 ## Adding an AI provider
 
-Implement `UsageProvider` (in `src-tauri/src/codenotch/mod.rs`) for the new service and register it in `codenotch::start`. Parse responses defensively, and return `NeedsAuth` instead of showing a fake 0 %.
+Implement `UsageProvider` (in `src-tauri/src/codenotch/mod.rs`) for the new service and register it in `providers()`. `detect()` must only read the CLI's existing sign-in; never write or refresh tokens. Parse responses defensively, and return `NeedsAuth` instead of showing a fake 0 %.
