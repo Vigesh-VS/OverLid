@@ -1,3 +1,5 @@
+import type { PanelId } from "../stores/island";
+
 // Numeric tokens that JS needs (sizes, springs, delays), read from tokens.css
 // so CSS stays the single source of truth.
 
@@ -9,7 +11,7 @@ function readNumber(name: string, fallback: number): number {
 
 export interface IslandTokens {
   pill: { width: number; height: number; radius: number; ear: number };
-  expanded: { width: number; height: number; radius: number; ear: number };
+  expanded: { width: number; radius: number; ear: number; heights: Record<PanelId, number> };
   spring: { stiffness: number; damping: number };
   hoverInMs: number;
   hoverOutMs: number;
@@ -25,7 +27,14 @@ export function readIslandTokens(): IslandTokens {
     },
     expanded: {
       width: readNumber("--ol-expanded-w", 680),
-      height: readNumber("--ol-expanded-h", 236),
+      heights: {
+        home: readNumber("--ol-panel-h-home", 362),
+        media: readNumber("--ol-panel-h-media", 262),
+        code: readNumber("--ol-panel-h-code", 372),
+        prompter: readNumber("--ol-panel-h-prompter", 330),
+        focus: readNumber("--ol-panel-h-focus", 300),
+        stats: readNumber("--ol-panel-h-stats", 330),
+      },
       radius: readNumber("--ol-expanded-radius", 32),
       ear: readNumber("--ol-expanded-ear", 18),
     },

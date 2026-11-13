@@ -29,7 +29,13 @@
 
   /* Expanded island */
   --ol-expanded-w: 680px;
-  --ol-expanded-h: 236px;
+  /* Expanded height per panel (the island grows to fit each one) */
+  --ol-panel-h-home: 362px;
+  --ol-panel-h-media: 262px;
+  --ol-panel-h-code: 372px;
+  --ol-panel-h-prompter: 330px;
+  --ol-panel-h-focus: 300px;
+  --ol-panel-h-stats: 330px;
   --ol-expanded-radius: 32px;
   --ol-expanded-ear: 18px;
   --ol-tab-h: 30px;

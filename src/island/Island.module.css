@@ -43,19 +43,11 @@
   justify-content: center;
 }
 
-.pillClock {
-  font-size: var(--ol-fs-md);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-
 /* Laid out at full expanded size so nothing reflows while the island grows. */
 .expanded {
   position: absolute;
   top: 0;
   left: 50%;
   width: var(--ol-expanded-w);
-  height: var(--ol-expanded-h);
   margin-left: calc(var(--ol-expanded-w) / -2);
 }

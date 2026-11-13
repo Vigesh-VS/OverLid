@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
 
-import { commands, inTauri, on } from "../lib/ipc";
+import { commands, inTauri } from "../lib/ipc";
 import { useIsland } from "../stores/island";
 import { readIslandTokens } from "../styles/tokens";
-import { Clock } from "./compact/Clock";
+import { CompactBar } from "./compact/CompactBar";
 import { ExpandedShell } from "./panels/ExpandedShell";
 import styles from "./Island.module.css";
 
@@ -14,22 +14,15 @@ const fadeIn: Transition = { duration: 0.16, delay: 0.08 };
 export function Island() {
   const [tokens] = useState(readIslandTokens);
   const reduceMotion = useReducedMotion();
-  const { mode, hovered, setMode, setHovered } = useIsland();
+  const { mode, hovered, panel, setMode, setHovered } = useIsland();
   const expanded = mode === "expanded";
-  const shape = expanded ? tokens.expanded : tokens.pill;
+  const shape = expanded
+    ? { ...tokens.expanded, height: tokens.expanded.heights[panel] }
+    : tokens.pill;
 
   const spring: Transition = reduceMotion
     ? { duration: 0 }
     : { type: "spring", stiffness: tokens.spring.stiffness, damping: tokens.spring.damping };
-
-  // Rust tells us when the cursor enters or leaves the hit rect.
-  useEffect(() => {
-    if (!inTauri) return;
-    const unlisten = on("island://hover", setHovered);
-    return () => {
-      unlisten.then((off) => off()).catch(() => undefined);
-    };
-  }, [setHovered]);
 
   // Hover intent: expand after a short hover, collapse after the cursor has been gone a while.
   useEffect(() => {
@@ -85,6 +78,7 @@ export function Island() {
               <motion.div
                 key="expanded"
                 className={styles.expanded}
+                style={{ height: shape.height }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1, transition: fadeIn }}
                 exit={{ opacity: 0, transition: fadeOut }}
@@ -99,7 +93,7 @@ export function Island() {
                 animate={{ opacity: 1, transition: fadeIn }}
                 exit={{ opacity: 0, transition: fadeOut }}
               >
-                <Clock className={styles.pillClock} />
+                <CompactBar />
               </motion.div>
             )}
           </AnimatePresence>

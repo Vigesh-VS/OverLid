@@ -1,0 +1,82 @@
+.center,
+.bar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+}
+
+.center {
+  justify-content: center;
+}
+
+.bar {
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.clock {
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.art {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.bars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+}
+
+.bars span {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleY(0.35);
+  transform-origin: center;
+}
+
+.playing span {
+  animation: bar 900ms ease-in-out infinite alternate;
+}
+
+.playing span:nth-child(2) {
+  animation-duration: 640ms;
+  animation-delay: -200ms;
+}
+
+.playing span:nth-child(3) {
+  animation-duration: 780ms;
+  animation-delay: -420ms;
+}
+
+.playing span:nth-child(4) {
+  animation-duration: 560ms;
+  animation-delay: -120ms;
+}
+
+@keyframes bar {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playing span {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+}

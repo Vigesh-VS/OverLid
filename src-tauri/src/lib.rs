@@ -1,3 +1,4 @@
+mod media;
 mod tray;
 mod window;
 
@@ -10,7 +11,15 @@ pub fn run() {
                 .build(),
         )
         .manage(window::HitState::default())
-        .invoke_handler(tauri::generate_handler![window::set_hit_rect])
+        .invoke_handler(tauri::generate_handler![
+            window::set_hit_rect,
+            media::media_get,
+            media::media_play_pause,
+            media::media_next,
+            media::media_previous,
+            media::media_seek,
+            media::media_cycle_session,
+        ])
         .setup(|app| {
             let handle = app.handle();
             if let Err(e) = window::setup(handle) {
@@ -19,6 +28,7 @@ pub fn run() {
             if let Err(e) = tray::setup(handle) {
                 log::error!("tray setup failed: {e:#}");
             }
+            media::start(handle);
             Ok(())
         })
         .run(tauri::generate_context!());

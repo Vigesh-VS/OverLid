@@ -50,8 +50,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-.panel {
+.body {
   flex-grow: 1;
+  min-height: 0;
+}
+
+.placeholder {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

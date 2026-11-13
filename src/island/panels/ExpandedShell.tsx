@@ -1,11 +1,11 @@
 import { PANELS, useIsland, type PanelId } from "../../stores/island";
 import { Clock } from "../compact/Clock";
 import styles from "./ExpandedShell.module.css";
+import { MediaPanel } from "./MediaPanel";
 
 // Placeholder copy until each module lands (SPEC §12).
-const COMING: Record<PanelId, string> = {
+const COMING: Partial<Record<PanelId, string>> = {
   home: "A summary of every module will show here.",
-  media: "Media controls arrive in Phase 1.",
   code: "Claude Code usage and sessions arrive in Phases 4 and 5.",
   prompter: "The teleprompter arrives in Phase 6.",
   focus: "The Pomodoro timer arrives in Phase 3.",
@@ -34,8 +34,14 @@ export function ExpandedShell() {
         <Clock className={styles.clock} />
       </nav>
 
-      <section className={styles.panel} aria-label={PANELS.find((p) => p.id === panel)?.label}>
-        <p className={styles.coming}>{COMING[panel]}</p>
+      <section className={styles.body} aria-label={PANELS.find((p) => p.id === panel)?.label}>
+        {panel === "media" ? (
+          <MediaPanel />
+        ) : (
+          <div className={styles.placeholder}>
+            <p className={styles.coming}>{COMING[panel]}</p>
+          </div>
+        )}
       </section>
     </div>
   );
