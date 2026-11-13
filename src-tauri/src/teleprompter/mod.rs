@@ -22,6 +22,8 @@ pub const COMMAND_EVENT: &str = "prompter://command";
 #[serde(rename_all = "camelCase")]
 pub enum Action {
     Toggle,
+    /// Always stops, whatever state the prompter is in.
+    Stop,
     PlayPause,
     Faster,
     Slower,
@@ -114,6 +116,17 @@ pub fn rebind(app: &AppHandle) {
 pub fn prompter_set_active(app: AppHandle, active: bool) {
     window::set_prompter(&app, active);
     rebind(&app);
+}
+
+/// Emergency stop (tray): tell the frontend to stop, and drop the presenting
+/// state in Rust too, so protection and shortcuts are released even if the
+/// island UI is unresponsive.
+pub fn force_stop(app: &AppHandle) {
+    if let Err(e) = app.emit(COMMAND_EVENT, Action::Stop) {
+        log::warn!("emit {COMMAND_EVENT} failed: {e}");
+    }
+    window::set_prompter(app, false);
+    rebind(app);
 }
 
 /// Start presenting a script from any window (e.g. after importing in Settings).

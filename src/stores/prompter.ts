@@ -154,6 +154,10 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
 
   handle: (action) => {
     const s = get();
+    if (action === "stop") {
+      s.stop();
+      return;
+    }
     if (action === "toggle") {
       if (s.status === "idle") s.start();
       else s.stop();
@@ -188,7 +192,12 @@ export const usePrompter = create<PrompterStore>((set, get) => ({
 
 export type Block = { kind: "section"; text: string; index: number } | { kind: "para"; text: string };
 
-/** Lines starting with "## " are sections; blank lines separate paragraphs. */
+/**
+ * Script text → blocks. Any markdown heading is a section; blank lines
+ * separate paragraphs. Markdown-only syntax that would read out as noise
+ * (code fences, table rules, image links, HTML tags, quote markers) is
+ * dropped; inline styling is kept for `renderInline`.
+ */
 export function parseScript(body: string): Block[] {
   const blocks: Block[] = [];
   let para: string[] = [];
@@ -198,18 +207,42 @@ export function parseScript(body: string): Block[] {
     para = [];
   };
   for (const raw of body.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (line.startsWith("## ")) {
+    let line = raw.trim();
+    if (/^(```|~~~)/.test(line) || /^\|?\s*:?-{3,}/.test(line) || /^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
       flush();
-      blocks.push({ kind: "section", text: line.slice(3).trim(), index: sections++ });
-    } else if (line === "") {
-      flush();
-    } else {
-      para.push(line);
+      continue;
     }
+    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+    if (heading) {
+      flush();
+      blocks.push({ kind: "section", text: plainText(heading[1]), index: sections++ });
+      continue;
+    }
+    if (line === "") {
+      flush();
+      continue;
+    }
+    line = line
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/^>\s?/, "")
+      .replace(/^[-*+]\s+/, "• ")
+      .replace(/^\|(.*)\|$/, "$1")
+      .replace(/\s*\|\s*/g, "  ·  ");
+    if (line.trim()) para.push(line.trim());
   }
   flush();
   return blocks;
+}
+
+/** Markdown inline syntax stripped to plain text (for section names). */
+export function plainText(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__)(.+?)\1/g, "$2")
+    .replace(/(\*|_)(.+?)\1/g, "$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
 }
 
 /** Effective text size: fixed, or scaled with the area when auto-fit is on. */

@@ -334,6 +334,7 @@ export interface VoiceLevel {
 
 export type PrompterAction =
   | "toggle"
+  | "stop"
   | "playPause"
   | "faster"
   | "slower"

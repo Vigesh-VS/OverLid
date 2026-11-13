@@ -72,6 +72,7 @@ fn watch_theme(app: &AppHandle) {
 }
 
 const SETTINGS_ID: &str = "settings";
+const STOP_PROMPTER_ID: &str = "stop-prompter";
 const GAME_ID: &str = "game-mode";
 const PAUSE_ID: &str = "pause";
 const AUTOSTART_ID: &str = "autostart";
@@ -86,6 +87,7 @@ pub struct TrayItems {
 pub fn setup(app: &AppHandle) -> anyhow::Result<()> {
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
     let settings = MenuItem::with_id(app, SETTINGS_ID, "Settings…", true, None::<&str>)?;
+    let stop_prompter = MenuItem::with_id(app, STOP_PROMPTER_ID, "Stop teleprompter", true, None::<&str>)?;
     let game = CheckMenuItem::with_id(app, GAME_ID, "Game mode", true, false, None::<&str>)?;
     let pause = CheckMenuItem::with_id(app, PAUSE_ID, "Pause island", true, false, None::<&str>)?;
     let autostart =
@@ -93,7 +95,10 @@ pub fn setup(app: &AppHandle) -> anyhow::Result<()> {
     let quit = MenuItem::with_id(app, QUIT_ID, "Quit Overlid", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&settings, &sep1, &game, &pause, &autostart, &sep2, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[&settings, &stop_prompter, &sep1, &game, &pause, &autostart, &sep2, &quit],
+    )?;
 
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("Overlid")
@@ -101,6 +106,7 @@ pub fn setup(app: &AppHandle) -> anyhow::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             SETTINGS_ID => app_windows::open_settings(app),
+            STOP_PROMPTER_ID => crate::teleprompter::force_stop(app),
             GAME_ID => window::set_game_mode(app, !window::flags(app).game_mode),
             PAUSE_ID => window::set_paused(app, !window::flags(app).paused),
             AUTOSTART_ID => {

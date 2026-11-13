@@ -3,11 +3,26 @@
   /* The ambient glow sits at z-index -1 inside this stacking context. */
   isolation: isolate;
   box-sizing: border-box;
+  /* A fixed box: width comes from the prompter area, never from the text.
+     (Long paragraphs used to stretch it to max-content and push every
+     control outside the island.) */
+  flex: none;
   height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: 8px 20px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Toolbar rows sit on their own layer above the text, reading line and glow. */
+.header,
+.footer {
+  position: relative;
+  z-index: 3;
+  min-width: 0;
 }
 
 .header {
@@ -16,6 +31,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.micOn {
+  display: inline-flex;
+  animation: micPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.chunk {
+  /* Each chunk is laid out on its own. */
+  contain: layout paint style;
 }
 
 .protected,
@@ -53,8 +85,12 @@
 
 .viewport {
   position: relative;
+  z-index: 1;
   flex-shrink: 0;
+  /* The text clips inside its own box and can never cover the toolbar. */
   overflow: hidden;
+  contain: strict;
+  width: 100%;
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
@@ -154,12 +190,67 @@
   background: var(--ol-track);
 }
 
+/* Long section lists scroll sideways inside the footer, never past it. */
 .sections {
-  flex-grow: 1;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   gap: 4px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.sections::-webkit-scrollbar {
+  display: none;
+}
+
+.stepper {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: var(--ol-surface-raised);
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+}
+
+.stepper span {
+  padding: 0 2px;
+}
+
+.stepper button {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ol-text);
+  font-size: var(--ol-fs-sm);
+  font-weight: 600;
+}
+
+.stepper button:hover {
+  background: var(--ol-track);
+}
+
+.stepper button:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 1px;
+}
+
+.stop {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stop:hover {
+  background: var(--ol-red);
+  color: var(--ol-black);
 }
 
 .sectionChip,
