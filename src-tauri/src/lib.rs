@@ -108,6 +108,7 @@ pub fn run() {
             codenotch::sessions::code_dismiss,
             quick_action::quick_action_run,
             quick_action::app_icon,
+            quick_action::list_installed_apps,
             ambient::ambient_wallpaper,
             teleprompter::prompter_set_active,
             teleprompter::prompter_start,

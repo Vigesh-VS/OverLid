@@ -164,3 +164,87 @@ fn icon_to_rgba(icon: HICON) -> anyhow::Result<AppIcon> {
     }
     result
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledApp {
+    pub name: String,
+    /// The shortcut's resolved .exe target.
+    pub path: String,
+}
+
+/// Apps from the Start menu (all users and current user), resolved from
+/// their shortcuts to the real .exe so launching never passes arguments.
+#[tauri::command]
+pub async fn list_installed_apps() -> Vec<InstalledApp> {
+    tauri::async_runtime::spawn_blocking(scan_start_menu)
+        .await
+        .unwrap_or_default()
+}
+
+fn scan_start_menu() -> Vec<InstalledApp> {
+    use std::collections::BTreeMap;
+    use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx, IPersistFile, STGM_READ};
+    use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
+    use windows::core::Interface;
+
+    let mut roots = Vec::new();
+    if let Some(p) = std::env::var_os("ProgramData") {
+        roots.push(std::path::PathBuf::from(p).join(r"Microsoft\Windows\Start Menu\Programs"));
+    }
+    if let Some(p) = std::env::var_os("APPDATA") {
+        roots.push(std::path::PathBuf::from(p).join(r"Microsoft\Windows\Start Menu\Programs"));
+    }
+
+    // SAFETY: COM for this worker thread only.
+    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    // SAFETY: standard in-process ShellLink object.
+    let Ok(link) = (unsafe { CoCreateInstance::<_, IShellLinkW>(&ShellLink, None, CLSCTX_INPROC_SERVER) }) else {
+        return Vec::new();
+    };
+    let Ok(file) = link.cast::<IPersistFile>() else { return Vec::new() };
+
+    let mut found: BTreeMap<String, InstalledApp> = BTreeMap::new();
+    let mut stack = roots;
+    let mut visited = 0usize;
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            visited += 1;
+            if visited > 5000 {
+                break;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+                continue;
+            }
+            if !path.extension().is_some_and(|e| e.eq_ignore_ascii_case("lnk")) {
+                continue;
+            }
+            let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+            let lower = name.to_ascii_lowercase();
+            if lower.contains("uninstall") || lower.contains("readme") || lower.contains("help") {
+                continue;
+            }
+            let target = HSTRING::from(path.as_os_str());
+            let mut buf = [0u16; 1024];
+            // SAFETY: read-only shortcut parsing into a fixed buffer.
+            let resolved = unsafe {
+                file.Load(&target, STGM_READ).is_ok()
+                    && link.GetPath(&mut buf, std::ptr::null_mut(), 0).is_ok()
+            };
+            if !resolved {
+                continue;
+            }
+            let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+            let exe = String::from_utf16_lossy(&buf[..len]);
+            if exe.to_ascii_lowercase().ends_with(".exe") && Path::new(&exe).is_file() {
+                found.entry(exe.to_ascii_lowercase()).or_insert(InstalledApp { name, path: exe });
+            }
+        }
+    }
+    let mut apps: Vec<InstalledApp> = found.into_values().collect();
+    apps.sort_by_key(|a| a.name.to_lowercase());
+    apps
+}

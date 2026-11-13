@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { QUICK_ICONS, QuickIcon } from "../../components/quickIcons";
-import { commands, type AppIcon, type QuickAction, type QuickKind, type RunningApp, type Script } from "../../lib/ipc";
+import { commands, type AppIcon, type InstalledApp, type QuickAction, type QuickKind, type Script } from "../../lib/ipc";
 import { Choice, Group, Row, Select, TextField } from "../controls";
+import { AppPicker } from "./AppPicker";
 import styles from "../Settings.module.css";
 import { useSettingsStore } from "../useSettings";
 
@@ -50,12 +51,12 @@ const appName = (path: string) => path.split(/[\\/]/).pop()?.replace(/\.exe$/i, 
 export function QuickActionTab() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
-  const [running, setRunning] = useState<RunningApp[]>([]);
+  const [apps, setApps] = useState<InstalledApp[] | null>(null);
   const [scripts, setScripts] = useState<Script[]>([]);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    commands.listRunningApps().then(setRunning, () => undefined);
+    commands.listInstalledApps().then(setApps, () => setApps([]));
     commands.scriptsList().then(setScripts, () => undefined);
   }, []);
 
@@ -78,7 +79,7 @@ export function QuickActionTab() {
 
   return (
     <>
-      <Group title="Quick action" note="A button at the right end of the collapsed pill. Choose what it does.">
+      <Group title="Quick action" note="A button on the right of the collapsed pill, shown when Settings › Display › Extended pill is on. Choose what it does.">
         <Choice
           label="When clicked"
           value={qa.kind}
@@ -90,7 +91,7 @@ export function QuickActionTab() {
 
         {qa.kind === "launch" && (
           <>
-            <Row label="App" hint={qa.payload || "No app chosen yet."}>
+            <Row label="App" hint={qa.payload ? `Runs ${qa.payload}` : "No app chosen yet."}>
               {qa.iconData && <img src={qa.iconData} alt="" width={24} height={24} />}
               <button
                 type="button"
@@ -100,14 +101,7 @@ export function QuickActionTab() {
                 Browse…
               </button>
             </Row>
-            {running.length > 0 && (
-              <Select
-                label="Or pick a running app"
-                value=""
-                options={[{ value: "", label: "Choose…" }, ...running.map((r) => ({ value: r.path, label: r.name }))]}
-                onChange={(p) => p && void chooseApp(p)}
-              />
-            )}
+            <AppPicker apps={apps} selected={qa.payload} onPick={(p) => void chooseApp(p)} toDataUrl={iconToDataUrl} />
           </>
         )}
 

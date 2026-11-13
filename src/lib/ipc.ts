@@ -126,6 +126,12 @@ export interface AppIcon {
   rgba: string;
 }
 
+export interface InstalledApp {
+  name: string;
+  /** Resolved .exe target of the Start menu shortcut. */
+  path: string;
+}
+
 export interface RunningApp {
   name: string;
   exe: string;
@@ -392,6 +398,7 @@ export const commands = {
   quickActionRun: () => invoke<void>("quick_action_run"),
   appIcon: (path: string) => invoke<AppIcon>("app_icon", { path }),
   listRunningApps: () => invoke<RunningApp[]>("list_running_apps"),
+  listInstalledApps: () => invoke<InstalledApp[]>("list_installed_apps"),
   codeProviders: () => invoke<ProviderInfo[]>("code_providers"),
   codeDetect: (id: ProviderId) => invoke<Detection>("code_detect", { id }),
   codeConnectProvider: (id: ProviderId) => invoke<void>("code_connect_provider", { id }),
