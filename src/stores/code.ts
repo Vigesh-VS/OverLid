@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { AgentSession, HookStatus, ProviderStatus, UsageWindow } from "../lib/ipc";
+import type { AgentSession, HookStatus, ProviderInfo, ProviderStatus, UsageWindow } from "../lib/ipc";
 
 interface CodeStore {
   usage: ProviderStatus[];
@@ -8,6 +8,8 @@ interface CodeStore {
   /** Waiting session the user hasn't acknowledged: drives the bell. */
   attention: AgentSession | null;
   hooks: HookStatus | null;
+  providers: ProviderInfo[];
+  setProviders: (providers: ProviderInfo[]) => void;
   setUsage: (usage: ProviderStatus[]) => void;
   setSessions: (sessions: AgentSession[]) => void;
   setHooks: (hooks: HookStatus) => void;
@@ -18,6 +20,8 @@ export const useCode = create<CodeStore>((set) => ({
   sessions: [],
   attention: null,
   hooks: null,
+  providers: [],
+  setProviders: (providers) => set({ providers }),
   setUsage: (usage) => set({ usage }),
   setSessions: (sessions) =>
     set({ sessions, attention: sessions.find((s) => s.status === "waiting" && !s.acknowledged) ?? null }),

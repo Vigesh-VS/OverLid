@@ -1,6 +1,14 @@
 //! CodeNotch: AI coding-agent usage and live session status.
+//!
+//! Usage is only fetched for providers the user explicitly connected
+//! (Settings › AI tools). "Connect" detects the provider CLI's existing local
+//! sign-in and asks the user to confirm using it. Tokens are only ever read,
+//! never written or refreshed, and only sent to that provider's endpoint.
 
 pub mod claude;
+pub mod codex;
+pub mod copilot;
+pub mod gemini;
 pub mod hook_installer;
 pub mod hook_server;
 pub mod sessions;
@@ -8,7 +16,7 @@ pub mod sessions;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -28,12 +36,60 @@ const MAX_BACKOFF: Duration = Duration::from_secs(30 * 60);
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// One AI provider's usage source. Add Codex, Copilot, Gemini by implementing this.
+/// Result of looking for a provider CLI's existing sign-in on this PC.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Detection {
+    pub found: bool,
+    /// What was found, e.g. "Claude Code sign-in (Max plan)".
+    pub detail: Option<String>,
+}
+
+/// One AI provider's usage source. Add more by implementing this and
+/// registering it in [`providers`].
 pub trait UsageProvider: Send + Sync {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
+    /// The exact command to sign in with that provider's CLI.
+    fn sign_in_hint(&self) -> &'static str;
+    /// False ships the provider disabled as "coming soon".
+    fn available(&self) -> bool {
+        true
+    }
+    fn detect(&self) -> Detection;
     fn fetch(&self) -> BoxFuture<'_, Result<UsageSnapshot, ProviderError>>;
     fn min_interval(&self) -> Duration;
+}
+
+fn providers() -> &'static [Arc<dyn UsageProvider>] {
+    static LIST: OnceLock<Vec<Arc<dyn UsageProvider>>> = OnceLock::new();
+    LIST.get_or_init(|| {
+        vec![
+            Arc::new(claude::ClaudeProvider::new()),
+            Arc::new(codex::CodexProvider::new()),
+            Arc::new(copilot::CopilotProvider::new()),
+            Arc::new(gemini::GeminiProvider),
+        ]
+    })
+}
+
+fn provider(id: &str) -> Option<Arc<dyn UsageProvider>> {
+    providers().iter().find(|p| p.id() == id).cloned()
+}
+
+/// Shared HTTP client for provider fetches.
+pub fn http() -> Option<&'static reqwest::Client> {
+    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(Duration::from_secs(15))
+                .user_agent(concat!("overlid/", env!("CARGO_PKG_VERSION")))
+                .build()
+                .map_err(|e| log::error!("http client init failed: {e}"))
+                .ok()
+        })
+        .as_ref()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -58,6 +114,8 @@ pub struct UsageSnapshot {
     pub windows: Vec<UsageWindow>,
     pub fetched_at: DateTime<Utc>,
     pub fidelity: Fidelity,
+    /// Plan or account info, if the provider reports it.
+    pub plan: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -95,38 +153,70 @@ pub struct ProviderStatus {
     pub last_attempt_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderInfo {
+    pub id: String,
+    pub name: String,
+    pub available: bool,
+    pub connected: bool,
+    pub sign_in_hint: String,
+}
+
 pub struct UsageStore {
-    statuses: Mutex<Vec<ProviderStatus>>,
+    statuses: Mutex<HashMap<String, ProviderStatus>>,
     refresh: Notify,
 }
 
+fn initial_status(p: &dyn UsageProvider) -> ProviderStatus {
+    ProviderStatus {
+        provider_id: p.id().into(),
+        display_name: p.display_name().into(),
+        state: UsageState::Loading,
+        snapshot: None,
+        message: None,
+        last_attempt_at: None,
+    }
+}
+
 pub fn start(app: &AppHandle) {
-    let providers: Vec<Arc<dyn UsageProvider>> = vec![Arc::new(claude::ClaudeProvider::new())];
-    let initial = providers
+    let statuses = providers()
         .iter()
-        .map(|p| ProviderStatus {
-            provider_id: p.id().into(),
-            display_name: p.display_name().into(),
-            state: UsageState::Loading,
-            snapshot: None,
-            message: None,
-            last_attempt_at: None,
-        })
+        .map(|p| (p.id().to_owned(), initial_status(p.as_ref())))
         .collect();
     app.manage(UsageStore {
-        statuses: Mutex::new(initial),
+        statuses: Mutex::new(statuses),
         refresh: Notify::new(),
     });
 
-    for (index, provider) in providers.into_iter().enumerate() {
+    for provider in providers().iter().filter(|p| p.available()) {
         let app = app.clone();
-        tauri::async_runtime::spawn(async move { poll_loop(app, index, provider).await });
+        let provider = Arc::clone(provider);
+        tauri::async_runtime::spawn(async move { poll_loop(app, provider).await });
+    }
+}
+
+fn is_connected(app: &AppHandle, id: &str) -> bool {
+    settings::current(app).code.connected.iter().any(|c| c == id)
+}
+
+/// Statuses of connected providers, in the user's order (first = primary).
+fn connected_statuses(app: &AppHandle) -> Vec<ProviderStatus> {
+    let order = settings::current(app).code.connected;
+    let Some(store) = app.try_state::<UsageStore>() else { return Vec::new() };
+    let Ok(statuses) = store.statuses.lock() else { return Vec::new() };
+    order.iter().filter_map(|id| statuses.get(id).cloned()).collect()
+}
+
+fn emit(app: &AppHandle) {
+    if let Err(e) = app.emit(USAGE_EVENT, connected_statuses(app)) {
+        log::warn!("emit {USAGE_EVENT} failed: {e}");
     }
 }
 
 #[tauri::command]
-pub fn code_usage(store: tauri::State<'_, UsageStore>) -> Vec<ProviderStatus> {
-    store.statuses.lock().map(|s| s.clone()).unwrap_or_default()
+pub fn code_usage(app: AppHandle) -> Vec<ProviderStatus> {
+    connected_statuses(&app)
 }
 
 #[tauri::command]
@@ -135,11 +225,80 @@ pub fn code_refresh_usage(store: tauri::State<'_, UsageStore>) {
 }
 
 #[tauri::command]
+pub fn code_providers(app: AppHandle) -> Vec<ProviderInfo> {
+    let connected = settings::current(&app).code.connected;
+    providers()
+        .iter()
+        .map(|p| ProviderInfo {
+            id: p.id().into(),
+            name: p.display_name().into(),
+            available: p.available(),
+            connected: connected.iter().any(|c| c == p.id()),
+            sign_in_hint: p.sign_in_hint().into(),
+        })
+        .collect()
+}
+
+/// Look for the provider CLI's sign-in so the user can confirm using it.
+#[tauri::command]
+pub async fn code_detect(id: String) -> Result<Detection, String> {
+    let p = provider(&id).ok_or_else(|| format!("unknown provider {id}"))?;
+    if !p.available() {
+        return Err(format!("{} usage is coming soon.", p.display_name()));
+    }
+    tauri::async_runtime::spawn_blocking(move || p.detect())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Connect a provider after the user confirmed its detected sign-in.
+#[tauri::command]
+pub fn code_connect_provider(app: AppHandle, id: String) -> Result<(), String> {
+    let p = provider(&id).ok_or_else(|| format!("unknown provider {id}"))?;
+    if !p.available() {
+        return Err(format!("{} usage is coming soon.", p.display_name()));
+    }
+    let mut next = settings::current(&app);
+    if !next.code.connected.contains(&id) {
+        next.code.connected.push(id);
+    }
+    settings::replace(&app, next);
+    emit(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn code_disconnect_provider(app: AppHandle, id: String) {
+    let mut next = settings::current(&app);
+    next.code.connected.retain(|c| *c != id);
+    settings::replace(&app, next);
+    if let Some(store) = app.try_state::<UsageStore>()
+        && let Ok(mut statuses) = store.statuses.lock()
+        && let Some(p) = provider(&id)
+    {
+        statuses.insert(id, initial_status(p.as_ref()));
+    }
+    emit(&app);
+}
+
+/// Make a connected provider the primary one (first in the list).
+#[tauri::command]
+pub fn code_set_primary(app: AppHandle, id: String) {
+    let mut next = settings::current(&app);
+    if let Some(pos) = next.code.connected.iter().position(|c| *c == id) {
+        let item = next.code.connected.remove(pos);
+        next.code.connected.insert(0, item);
+        settings::replace(&app, next);
+        emit(&app);
+    }
+}
+
+#[tauri::command]
 pub fn code_hook_status(app: AppHandle) -> hook_installer::HookStatus {
     hook_installer::status(hook_server::bound_port(&app))
 }
 
-/// "Connect Claude Code": back up and merge our hooks into ~/.claude/settings.json.
+/// "Connect live sessions": back up and merge our hooks into ~/.claude/settings.json.
 #[tauri::command]
 pub async fn code_connect(app: AppHandle) -> Result<hook_installer::ChangeReport, String> {
     let port = hook_server::bound_port(&app)
@@ -165,32 +324,33 @@ pub fn refresh_now(app: &AppHandle) {
     }
 }
 
-fn update(app: &AppHandle, index: usize, f: impl FnOnce(&mut ProviderStatus)) {
+fn update(app: &AppHandle, id: &str, f: impl FnOnce(&mut ProviderStatus)) {
     let Some(store) = app.try_state::<UsageStore>() else { return };
-    let snapshot = {
+    {
         let Ok(mut statuses) = store.statuses.lock() else { return };
-        let Some(status) = statuses.get_mut(index) else { return };
+        let Some(status) = statuses.get_mut(id) else { return };
         f(status);
-        statuses.clone()
-    };
-    if let Err(e) = app.emit(USAGE_EVENT, snapshot) {
-        log::warn!("emit {USAGE_EVENT} failed: {e}");
     }
+    emit(app);
 }
 
-async fn poll_loop(app: AppHandle, index: usize, provider: Arc<dyn UsageProvider>) {
+async fn poll_loop(app: AppHandle, provider: Arc<dyn UsageProvider>) {
+    let id = provider.id();
     let mut backoff = Duration::ZERO;
     let mut levels: HashMap<String, u8> = HashMap::new();
     let mut first = true;
 
     loop {
         let code = settings::current(&app).code;
-        if !code.enabled {
-            update(&app, index, |s| {
+        if !code.enabled || !is_connected(&app, id) {
+            // Not connected: stay idle until settings change.
+            first = true;
+            levels.clear();
+            update(&app, id, |s| {
                 s.state = UsageState::Disabled;
                 s.message = None;
             });
-            wait(&app, Duration::from_secs(30)).await;
+            wait(&app, Duration::from_secs(300)).await;
             continue;
         }
 
@@ -199,16 +359,16 @@ async fn poll_loop(app: AppHandle, index: usize, provider: Arc<dyn UsageProvider
         let mut next = Duration::from_secs(code.poll_secs)
             .max(provider.min_interval())
             .max(MIN_POLL);
-        if sessions::any_busy(&app) {
+        if id == "claude" && sessions::any_busy(&app) {
             next = next.min(BUSY_POLL);
         }
 
         match result {
             Ok(snapshot) => {
                 backoff = Duration::ZERO;
-                check_thresholds(&app, &snapshot, &mut levels, first, &code);
+                check_thresholds(&app, provider.as_ref(), &snapshot, &mut levels, first, &code);
                 first = false;
-                update(&app, index, |s| {
+                update(&app, id, |s| {
                     s.state = UsageState::Ok;
                     s.snapshot = Some(snapshot);
                     s.message = None;
@@ -216,9 +376,9 @@ async fn poll_loop(app: AppHandle, index: usize, provider: Arc<dyn UsageProvider
                 });
             }
             Err(ProviderError::NeedsAuth) => {
-                update(&app, index, |s| {
+                update(&app, id, |s| {
                     s.state = UsageState::NeedsAuth;
-                    s.message = Some("Run `claude` once in a terminal to sign in.".into());
+                    s.message = Some(format!("Sign in again: {}", provider.sign_in_hint()));
                     s.last_attempt_at = Some(now);
                 });
             }
@@ -226,16 +386,16 @@ async fn poll_loop(app: AppHandle, index: usize, provider: Arc<dyn UsageProvider
                 backoff = retry_after.unwrap_or_else(|| (backoff * 2).max(MIN_POLL));
                 backoff = backoff.min(MAX_BACKOFF);
                 next = next.max(backoff);
-                log::info!("{} usage rate limited, retrying in {}s", provider.id(), next.as_secs());
-                update(&app, index, |s| {
+                log::info!("{id} usage rate limited, retrying in {}s", next.as_secs());
+                update(&app, id, |s| {
                     s.state = UsageState::RateLimited;
                     s.message = Some(format!("Rate limited. Retrying in {} min.", next.as_secs().div_ceil(60)));
                     s.last_attempt_at = Some(now);
                 });
             }
             Err(e) => {
-                log::warn!("{} usage fetch failed: {e}", provider.id());
-                update(&app, index, |s| {
+                log::warn!("{id} usage fetch failed: {e}");
+                update(&app, id, |s| {
                     s.state = UsageState::Error;
                     s.message = Some(e.to_string());
                     s.last_attempt_at = Some(now);
@@ -274,11 +434,13 @@ fn level(pct: f64, code: &settings::Code) -> u8 {
 
 fn check_thresholds(
     app: &AppHandle,
+    provider: &dyn UsageProvider,
     snapshot: &UsageSnapshot,
     levels: &mut HashMap<String, u8>,
     first: bool,
     code: &settings::Code,
 ) {
+    let name = provider.display_name();
     for w in &snapshot.windows {
         let now = level(w.used_percent, code);
         let before = levels.insert(w.key.clone(), now).unwrap_or(0);
@@ -290,11 +452,12 @@ fn check_thresholds(
             .resets_at
             .map(|t| format!("Resets in {}", human_until(t)))
             .unwrap_or_else(|| "Reset time unknown".into());
+        let label = format!("{name} {}", w.label);
         if now > before {
             let (tone, title) = match now {
-                3 => (Tone::Critical, format!("{} limit reached", w.label)),
-                2 => (Tone::Critical, format!("{} limit at {:.0} %", w.label, w.used_percent)),
-                _ => (Tone::Warn, format!("{} limit at {:.0} %", w.label, w.used_percent)),
+                3 => (Tone::Critical, format!("{label} limit reached")),
+                2 => (Tone::Critical, format!("{label} at {:.0} %", w.used_percent)),
+                _ => (Tone::Warn, format!("{label} at {:.0} %", w.used_percent)),
             };
             peek::show(
                 app,
@@ -305,14 +468,14 @@ fn check_thresholds(
             );
             peek::notify(app, PeekKind::Usage, &title, &resets);
         } else if now == 0 && before >= 2 {
-            let title = format!("{} quota available again", w.label);
+            let title = format!("{label} quota available again");
             peek::show(
                 app,
                 Peek::new(PeekKind::QuotaBack, Tone::Good, title.clone())
                     .subtitle(format!("{:.0} % used", w.used_percent))
                     .value(w.used_percent / 100.0),
             );
-            peek::notify(app, PeekKind::QuotaBack, &title, "Claude Code is ready to go.");
+            peek::notify(app, PeekKind::QuotaBack, &title, &format!("{name} is ready to go."));
         }
     }
 }
@@ -328,4 +491,19 @@ pub fn human_until(t: DateTime<Utc>) -> String {
     } else {
         format!("{}m", m.max(1))
     }
+}
+
+/// Parse an RFC 3339 timestamp, a plain date, or Unix seconds.
+pub fn parse_time(value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    if let Some(n) = value.as_i64() {
+        return DateTime::from_timestamp(n, 0);
+    }
+    let s = value.as_str()?;
+    if let Ok(t) = DateTime::parse_from_rfc3339(s) {
+        return Some(t.with_timezone(&Utc));
+    }
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.and_hms_opt(0, 0, 0))
+        .map(|dt| dt.and_utc())
 }

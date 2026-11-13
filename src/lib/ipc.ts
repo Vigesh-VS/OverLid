@@ -237,6 +237,23 @@ export interface UsageSnapshot {
   windows: UsageWindow[];
   fetchedAt: string;
   fidelity: "derived";
+  plan: string | null;
+}
+
+export type ProviderId = "claude" | "codex" | "copilot" | "gemini";
+
+export interface ProviderInfo {
+  id: ProviderId;
+  name: string;
+  /** False = shipped disabled, "coming soon". */
+  available: boolean;
+  connected: boolean;
+  signInHint: string;
+}
+
+export interface Detection {
+  found: boolean;
+  detail: string | null;
 }
 
 export type UsageState = "loading" | "ok" | "needsAuth" | "rateLimited" | "error" | "disabled";
@@ -353,6 +370,11 @@ export const commands = {
   quickActionRun: () => invoke<void>("quick_action_run"),
   appIcon: (path: string) => invoke<AppIcon>("app_icon", { path }),
   listRunningApps: () => invoke<RunningApp[]>("list_running_apps"),
+  codeProviders: () => invoke<ProviderInfo[]>("code_providers"),
+  codeDetect: (id: ProviderId) => invoke<Detection>("code_detect", { id }),
+  codeConnectProvider: (id: ProviderId) => invoke<void>("code_connect_provider", { id }),
+  codeDisconnectProvider: (id: ProviderId) => invoke<void>("code_disconnect_provider", { id }),
+  codeSetPrimary: (id: ProviderId) => invoke<void>("code_set_primary", { id }),
   codeHookStatus: () => invoke<HookStatus>("code_hook_status"),
   codeConnect: () => invoke<HookChangeReport>("code_connect"),
   codeDisconnect: () => invoke<HookChangeReport>("code_disconnect"),

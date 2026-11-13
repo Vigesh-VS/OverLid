@@ -1,0 +1,60 @@
+.prompt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ol-space-5);
+  padding: var(--ol-space-5) var(--ol-space-6);
+  border-radius: 14px;
+  background: var(--ol-surface-raised);
+}
+
+.text {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--ol-fs-sm);
+  color: var(--ol-text-2);
+  line-height: 1.4;
+}
+
+.text strong {
+  color: var(--ol-text);
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: var(--ol-space-2);
+}
+
+.primary,
+.secondary {
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font-size: var(--ol-fs-sm);
+  font-weight: 600;
+}
+
+.primary {
+  background: var(--ol-text);
+  color: var(--ol-black);
+}
+
+.secondary {
+  background: var(--ol-track);
+}
+
+.primary:disabled {
+  opacity: 0.6;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 2px;
+}

@@ -35,7 +35,10 @@ export function startBridge(): void {
     }
   });
   void on("media://update", (media) => useMedia.getState().setMedia(media));
-  void on("settings://changed", (settings) => system.setSettings(settings));
+  void on("settings://changed", (settings) => {
+    system.setSettings(settings);
+    loadProviders();
+  });
   void on("system://tick", (tick) => system.setTick(tick));
   void on("system://keys", (keys) => system.setKeys(keys));
   void on("pomo://tick", (state) => usePomodoro.getState().setState(state));
@@ -60,6 +63,7 @@ export function startBridge(): void {
   commands.settingsGet().then(system.setSettings, ignore);
   commands.systemGet().then(system.setTick, ignore);
   commands.codeUsage().then((u) => useCode.getState().setUsage(u), ignore);
+  loadProviders();
   commands.codeSessions().then((s) => useCode.getState().setSessions(s), ignore);
   commands.codeHookStatus().then((h) => useCode.getState().setHooks(h), ignore);
   loadScripts();
@@ -82,3 +86,7 @@ useCode.subscribe((state, prev) => {
     if (repeat && useCode.getState().attention && usePrompter.getState().status === "idle") chime("attention");
   }, REMIND_MS);
 });
+
+function loadProviders(): void {
+  commands.codeProviders().then((p) => useCode.getState().setProviders(p), ignore);
+}

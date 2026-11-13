@@ -10,7 +10,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-use super::{BoxFuture, Fidelity, ProviderError, UsageProvider, UsageSnapshot, UsageWindow};
+use super::{BoxFuture, Detection, Fidelity, ProviderError, UsageProvider, UsageSnapshot, UsageWindow};
 
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 const BETA_HEADER: &str = "oauth-2025-04-20";
@@ -23,19 +23,11 @@ const WINDOWS: [(&str, &str); 4] = [
     ("seven_day_sonnet", "7-day Sonnet"),
 ];
 
-pub struct ClaudeProvider {
-    client: Option<reqwest::Client>,
-}
+pub struct ClaudeProvider;
 
 impl ClaudeProvider {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(15))
-            .user_agent(concat!("overlid/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .map_err(|e| log::error!("http client init failed: {e}"))
-            .ok();
-        Self { client }
+        Self
     }
 }
 
@@ -48,16 +40,38 @@ impl UsageProvider for ClaudeProvider {
         "Claude Code"
     }
 
+    fn sign_in_hint(&self) -> &'static str {
+        "run `claude` in a terminal and type /login"
+    }
+
+    fn detect(&self) -> Detection {
+        match read_oauth() {
+            Ok(oauth) => {
+                let plan = oauth
+                    .get("subscriptionType")
+                    .and_then(Value::as_str)
+                    .map(|p| format!(" ({} plan)", capitalise(p)))
+                    .unwrap_or_default();
+                Detection {
+                    found: read_token().is_ok(),
+                    detail: Some(if read_token().is_ok() {
+                        format!("Claude Code sign-in found{plan}")
+                    } else {
+                        "Claude Code's sign-in has expired. Run `claude` once to refresh it.".into()
+                    }),
+                }
+            }
+            Err(_) => Detection { found: false, detail: None },
+        }
+    }
+
     fn min_interval(&self) -> Duration {
         Duration::from_secs(60)
     }
 
     fn fetch(&self) -> BoxFuture<'_, Result<UsageSnapshot, ProviderError>> {
         Box::pin(async move {
-            let client = self
-                .client
-                .as_ref()
-                .ok_or_else(|| ProviderError::Network("http client unavailable".into()))?;
+            let client = super::http().ok_or_else(|| ProviderError::Network("http client unavailable".into()))?;
             let token = read_token()?;
 
             let response = client
@@ -103,11 +117,20 @@ fn credentials_path() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".claude").join(".credentials.json"))
 }
 
-fn read_token() -> Result<String, ProviderError> {
+fn capitalise(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+}
+
+fn read_oauth() -> Result<Value, ProviderError> {
     let path = credentials_path().ok_or(ProviderError::NeedsAuth)?;
     let raw = std::fs::read_to_string(&path).map_err(|_| ProviderError::NeedsAuth)?;
     let json: Value = serde_json::from_str(&raw).map_err(|_| ProviderError::NeedsAuth)?;
-    let oauth = json.get("claudeAiOauth").ok_or(ProviderError::NeedsAuth)?;
+    json.get("claudeAiOauth").cloned().ok_or(ProviderError::NeedsAuth)
+}
+
+fn read_token() -> Result<String, ProviderError> {
+    let oauth = read_oauth()?;
     let token = oauth
         .get("accessToken")
         .and_then(Value::as_str)
@@ -142,6 +165,7 @@ fn parse_usage(body: &Value) -> Result<UsageSnapshot, ProviderError> {
         windows,
         fetched_at: Utc::now(),
         fidelity: Fidelity::Derived,
+        plan: None,
     })
 }
 

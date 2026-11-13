@@ -106,7 +106,8 @@ function CodeTile() {
   const usage = useCode((s) => s.usage);
   const sessions = useCode((s) => s.sessions);
   const code = useSystem((s) => s.settings?.code);
-  const windows = (usage.find((p) => p.providerId === "claude")?.snapshot?.windows ?? []).slice(0, 2);
+  const primary = usage[0];
+  const windows = (primary?.snapshot?.windows ?? []).slice(0, 2);
   const lead = leadSession(sessions);
   const status =
     lead?.status === "waiting"
@@ -118,7 +119,7 @@ function CodeTile() {
           : null;
 
   return (
-    <Tile title="Claude Code" panel="code" aside={status && <span className={status.cls}>{status.text}</span>}>
+    <Tile title={primary?.displayName ?? "AI tools"} panel="code" aside={status && <span className={status.cls}>{status.text}</span>}>
       {windows.length ? (
         <div className={styles.bars}>
           {windows.map((w) => {
@@ -137,7 +138,9 @@ function CodeTile() {
           })}
         </div>
       ) : (
-        <span className={styles.muted}>Usage shows here once Claude Code is signed in.</span>
+        <span className={styles.muted}>
+          {primary ? "Waiting for the first usage reading…" : "Connect Claude Code, Codex or Copilot in the Code tab."}
+        </span>
       )}
     </Tile>
   );

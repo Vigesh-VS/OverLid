@@ -9,22 +9,24 @@ import styles from "./CodePanel.module.css";
 import list from "./SessionList.module.css";
 
 /** Live Claude Code sessions reported by the hooks. */
-export function SessionList() {
+export function SessionList({ compact = false }: { compact?: boolean }) {
   const sessions = useCode((s) => s.sessions);
   const hooks = useCode((s) => s.hooks);
   const now = useNow(1000);
 
+  if (compact && sessions.length === 0) return null;
+
   return (
     <>
-      <span className={styles.heading}>Sessions</span>
+      {!compact && <span className={styles.heading}>Claude Code sessions</span>}
       {sessions.length > 0 ? (
         <>
           <div className={list.rows}>
-            {sessions.slice(0, 4).map((s) => (
+            {sessions.slice(0, compact ? 2 : 4).map((s) => (
               <SessionRow key={s.id} session={s} now={now} />
             ))}
           </div>
-          <span className={list.footnote}>Click a session to open its folder</span>
+          {!compact && <span className={list.footnote}>Click a session to open its folder</span>}
         </>
       ) : hooks?.installed ? (
         <div className={styles.sessionsEmpty}>
@@ -121,7 +123,7 @@ function ConnectPrompt() {
         Adds Overlid's hooks to Claude Code's settings. Your file is backed up first and your own hooks stay as they are.
       </span>
       <button type="button" className={list.connect} onClick={connect} disabled={busy}>
-        {busy ? "Connecting…" : "Connect Claude Code"}
+        {busy ? "Connecting…" : "Connect live sessions"}
       </button>
       {error && <span className={list.error}>{error}</span>}
     </div>
