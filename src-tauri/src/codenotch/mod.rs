@@ -1,6 +1,8 @@
 //! CodeNotch: AI coding-agent usage and live session status.
 
 pub mod claude;
+pub mod hook_installer;
+pub mod hook_server;
 pub mod sessions;
 
 use std::collections::HashMap;
@@ -130,6 +132,31 @@ pub fn code_usage(store: tauri::State<'_, UsageStore>) -> Vec<ProviderStatus> {
 #[tauri::command]
 pub fn code_refresh_usage(store: tauri::State<'_, UsageStore>) {
     store.refresh.notify_waiters();
+}
+
+#[tauri::command]
+pub fn code_hook_status(app: AppHandle) -> hook_installer::HookStatus {
+    hook_installer::status(hook_server::bound_port(&app))
+}
+
+/// "Connect Claude Code": back up and merge our hooks into ~/.claude/settings.json.
+#[tauri::command]
+pub async fn code_connect(app: AppHandle) -> Result<hook_installer::ChangeReport, String> {
+    let port = hook_server::bound_port(&app)
+        .ok_or_else(|| "The hook receiver isn't running, so there's nothing to connect to.".to_owned())?;
+    hook_installer::install(port).map_err(|e| {
+        log::warn!("hook install failed: {e:#}");
+        format!("{e:#}")
+    })
+}
+
+/// "Disconnect": remove only Overlid's hooks.
+#[tauri::command]
+pub async fn code_disconnect(app: AppHandle) -> Result<hook_installer::ChangeReport, String> {
+    hook_installer::uninstall(hook_server::bound_port(&app)).map_err(|e| {
+        log::warn!("hook uninstall failed: {e:#}");
+        format!("{e:#}")
+    })
 }
 
 pub fn refresh_now(app: &AppHandle) {

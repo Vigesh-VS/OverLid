@@ -33,11 +33,14 @@ export function startBridge(): void {
   void on("system://keys", (keys) => system.setKeys(keys));
   void on("pomo://tick", (state) => usePomodoro.getState().setState(state));
   void on("code://usage", (usage) => useCode.getState().setUsage(usage));
+  void on("code://session", (sessions) => useCode.getState().setSessions(sessions));
 
   commands.mediaGet().then((m) => useMedia.getState().setMedia(m), ignore);
   commands.islandFlags().then(island.setFlags, ignore);
   commands.settingsGet().then(system.setSettings, ignore);
   commands.systemGet().then(system.setTick, ignore);
   commands.codeUsage().then((u) => useCode.getState().setUsage(u), ignore);
+  commands.codeSessions().then((s) => useCode.getState().setSessions(s), ignore);
+  commands.codeHookStatus().then((h) => useCode.getState().setHooks(h), ignore);
   commands.pomoGet().then((p) => p && usePomodoro.getState().setState(p), ignore);
 }

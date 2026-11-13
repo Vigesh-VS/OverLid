@@ -24,6 +24,9 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
     if old.code != new.code {
         codenotch::refresh_now(app);
     }
+    if old.code.port != new.code.port {
+        codenotch::hook_server::restart(app);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -60,6 +63,11 @@ pub fn run() {
             pomodoro::pomo_history,
             codenotch::code_usage,
             codenotch::code_refresh_usage,
+            codenotch::code_hook_status,
+            codenotch::code_connect,
+            codenotch::code_disconnect,
+            codenotch::sessions::code_sessions,
+            codenotch::sessions::code_open_folder,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -74,6 +82,8 @@ pub fn run() {
             system::start(handle);
             fullscreen::start(handle);
             pomodoro::start(handle);
+            codenotch::sessions::start(handle);
+            codenotch::hook_server::start(handle);
             codenotch::start(handle);
             Ok(())
         })

@@ -1,8 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 
-import { Ring } from "../../components/Ring";
+import { CheckIcon } from "../../components/icons";
+import { BusyArc, Ring } from "../../components/Ring";
 import { formatCountdown } from "../../lib/format";
-import { LEVEL_COLOR, hottestWindow, useCode, usageLevel } from "../../stores/code";
+import { LEVEL_COLOR, hottestWindow, leadSession, useCode, usageLevel } from "../../stores/code";
 import { useMedia } from "../../stores/media";
 import { pomoActive, usePomodoro } from "../../stores/pomodoro";
 import { useSystem } from "../../stores/system";
@@ -19,6 +20,7 @@ export function CompactBar() {
   const accent = useMedia((s) => s.accent);
   const pomo = usePomodoro((s) => s.state);
   const usage = useCode((s) => s.usage);
+  const sessions = useCode((s) => s.sessions);
   const warnPct = useSystem((s) => s.settings?.code.warnPct ?? 80);
   const criticalPct = useSystem((s) => s.settings?.code.criticalPct ?? 95);
 
@@ -38,6 +40,24 @@ export function CompactBar() {
           {formatCountdown(pomo.remainingMs)}
         </span>
       </span>,
+    );
+  }
+
+  const lead = leadSession(sessions);
+  if (lead) {
+    slots.push(
+      lead.status === "busy" ? (
+        <BusyArc key="claude" size={16} stroke={2} className={styles.spin} />
+      ) : lead.status === "waiting" ? (
+        <span key="claude" className={styles.waiting}>
+          <span className={styles.waitDot} />
+          waiting
+        </span>
+      ) : (
+        <span key="claude" className={styles.done} role="img" aria-label="Claude finished">
+          <CheckIcon size={10} color="var(--ol-black)" />
+        </span>
+      ),
     );
   }
 

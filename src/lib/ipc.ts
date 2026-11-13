@@ -190,6 +190,32 @@ export interface ProviderStatus {
   lastAttemptAt: string | null;
 }
 
+export type SessionStatus = "idle" | "busy" | "waiting" | "done";
+
+export interface AgentSession {
+  id: string;
+  label: string;
+  cwd: string;
+  status: SessionStatus;
+  message: string | null;
+  tool: string | null;
+  turnStartedAt: string | null;
+  updatedAt: string;
+}
+
+export interface HookStatus {
+  installed: boolean;
+  partial: boolean;
+  port: number | null;
+  settingsPath: string | null;
+  listeningPort: number | null;
+}
+
+export interface HookChangeReport {
+  backup: string | null;
+  status: HookStatus;
+}
+
 // ---------- Commands ----------
 
 export const commands = {
@@ -213,6 +239,11 @@ export const commands = {
 
   codeUsage: () => invoke<ProviderStatus[]>("code_usage"),
   codeRefreshUsage: () => invoke<void>("code_refresh_usage"),
+  codeSessions: () => invoke<AgentSession[]>("code_sessions"),
+  codeOpenFolder: (sessionId: string) => invoke<void>("code_open_folder", { sessionId }),
+  codeHookStatus: () => invoke<HookStatus>("code_hook_status"),
+  codeConnect: () => invoke<HookChangeReport>("code_connect"),
+  codeDisconnect: () => invoke<HookChangeReport>("code_disconnect"),
 
   mediaGet: () => invoke<MediaState | null>("media_get"),
   mediaPlayPause: () => invoke<void>("media_play_pause"),
@@ -237,6 +268,7 @@ export interface EventPayloads {
   "fullscreen://changed": boolean;
   "pomo://tick": PomoState;
   "code://usage": ProviderStatus[];
+  "code://session": AgentSession[];
 }
 
 export function on<K extends keyof EventPayloads>(

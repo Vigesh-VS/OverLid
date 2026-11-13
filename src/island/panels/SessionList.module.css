@@ -1,0 +1,148 @@
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+}
+
+.row:hover {
+  background: var(--ol-surface-raised);
+}
+
+.row:focus-visible,
+.connect:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 1px;
+}
+
+.waiting {
+  background: #1a1710;
+}
+
+.text {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+}
+
+.detail {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waiting .detail {
+  color: var(--ol-amber);
+}
+
+.time {
+  flex-shrink: 0;
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.iconBox,
+.doneIcon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doneIcon {
+  border-radius: 50%;
+  background: var(--ol-green);
+}
+
+.waitDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ol-amber);
+  box-shadow: 0 0 0 4px rgb(255 178 36 / 0.22);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.idleDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ol-text-3);
+}
+
+.spin {
+  flex-shrink: 0;
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 7px rgb(255 178 36 / 0.08);
+  }
+}
+
+.footnote {
+  margin-top: auto;
+  padding: 0 8px 6px;
+  color: var(--ol-text-3);
+  font-size: var(--ol-fs-xs);
+}
+
+.connect {
+  margin-top: 8px;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ol-text);
+  color: var(--ol-black);
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+}
+
+.connect:disabled {
+  opacity: 0.6;
+}
+
+.error {
+  color: var(--ol-red);
+  font-size: var(--ol-fs-xs);
+  max-width: 40ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .waitDot {
+    animation: none;
+  }
+}

@@ -1,16 +1,36 @@
 import { create } from "zustand";
 
-import type { ProviderStatus, UsageWindow } from "../lib/ipc";
+import type { AgentSession, HookStatus, ProviderStatus, UsageWindow } from "../lib/ipc";
 
 interface CodeStore {
   usage: ProviderStatus[];
+  sessions: AgentSession[];
+  hooks: HookStatus | null;
   setUsage: (usage: ProviderStatus[]) => void;
+  setSessions: (sessions: AgentSession[]) => void;
+  setHooks: (hooks: HookStatus) => void;
 }
 
 export const useCode = create<CodeStore>((set) => ({
   usage: [],
+  sessions: [],
+  hooks: null,
   setUsage: (usage) => set({ usage }),
+  setSessions: (sessions) => set({ sessions }),
+  setHooks: (hooks) => set({ hooks }),
 }));
+
+const STATUS_RANK: Record<AgentSession["status"], number> = { waiting: 3, busy: 2, done: 1, idle: 0 };
+
+/** The session that should represent Claude in the pill, if any. */
+export function leadSession(sessions: AgentSession[]): AgentSession | null {
+  let lead: AgentSession | null = null;
+  for (const s of sessions) {
+    if (s.status === "idle") continue;
+    if (!lead || STATUS_RANK[s.status] > STATUS_RANK[lead.status]) lead = s;
+  }
+  return lead;
+}
 
 export type UsageLevel = "ok" | "warn" | "critical";
 
