@@ -14,8 +14,25 @@ body {
   font-family: var(--ol-font);
   color: var(--ol-text);
   -webkit-font-smoothing: antialiased;
-  user-select: none;
   cursor: default;
+}
+
+/* UI chrome is not a document: no selection highlights, no dragging images
+   or links out of the app. Text fields and the script editor are exempt. */
+*,
+*::before,
+*::after {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 button {
@@ -30,5 +47,4 @@ button {
 
 :root[data-window="settings"] body {
   background: var(--ol-settings-bg);
-  user-select: auto;
 }

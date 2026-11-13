@@ -21,6 +21,7 @@ export interface IslandTokens {
   peek: { short: Shape; tall: Shape };
   expanded: { width: number; radius: number; ear: number; heights: Record<PanelId, number> };
   countdown: Shape;
+  lock: { width: number; ms: number };
   /** Header + beam + footer height added around the prompter text area. */
   prompterChrome: number;
   spring: { stiffness: number; damping: number };
@@ -55,16 +56,17 @@ export function readIslandTokens(): IslandTokens {
     expanded: {
       width: readNumber("--ol-expanded-w", 680),
       heights: {
-        home: readNumber("--ol-panel-h-home", 362),
-        media: readNumber("--ol-panel-h-media", 262),
-        code: readNumber("--ol-panel-h-code", 372),
-        prompter: readNumber("--ol-panel-h-prompter", 330),
-        focus: readNumber("--ol-panel-h-focus", 300),
-        stats: readNumber("--ol-panel-h-stats", 330),
+        home: readNumber("--ol-panel-h-home", 280),
+        media: readNumber("--ol-panel-h-media", 210),
+        code: readNumber("--ol-panel-h-code", 300),
+        prompter: readNumber("--ol-panel-h-prompter", 270),
+        focus: readNumber("--ol-panel-h-focus", 200),
+        stats: readNumber("--ol-panel-h-stats", 250),
       },
       radius: readNumber("--ol-expanded-radius", 32),
       ear: readNumber("--ol-expanded-ear", 18),
     },
+    lock: { width: readNumber("--ol-lock-w", 176), ms: readNumber("--ol-lock-ms", 1000) },
     countdown: {
       width: readNumber("--ol-countdown-w", 180),
       height: readNumber("--ol-peek-h-short", 52),

@@ -1,20 +1,17 @@
 .grid {
-  height: 100%;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--ol-space-3);
 }
 
 .tile {
   min-width: 0;
-  padding: 14px 16px 16px;
+  padding: var(--ol-space-5) var(--ol-space-6);
   border-radius: var(--ol-card-radius);
   background: var(--ol-surface);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
+  gap: var(--ol-space-3);
 }
 
 .tileHead {

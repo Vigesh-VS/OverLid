@@ -7,10 +7,29 @@
   pointer-events: none;
 }
 
+.stage[data-position="left"] {
+  justify-content: flex-start;
+}
+
+.stage[data-position="right"] {
+  justify-content: flex-end;
+}
+
 .island {
   position: relative;
   background: var(--ol-black);
   pointer-events: auto;
+  /* One knob scales everything drawn in the island, anchored to the top edge. */
+  transform: scale(var(--ui-scale));
+  transform-origin: top center;
+}
+
+.stage[data-position="left"] .island {
+  transform-origin: top left;
+}
+
+.stage[data-position="right"] .island {
+  transform-origin: top right;
 }
 
 /* Clips content while the island grows; ears sit outside it. */
@@ -43,11 +62,23 @@
   justify-content: center;
 }
 
-/* Laid out at full expanded size so nothing reflows while the island grows. */
+/* Laid out at full expanded width so nothing reflows while the island grows.
+   Its height is the content's natural height, which the island measures. */
 .expanded {
   position: absolute;
   top: 0;
   left: 50%;
-  width: var(--ol-expanded-w);
-  margin-left: calc(var(--ol-expanded-w) / -2);
+  transform: translateX(-50%);
+}
+
+/* In a corner, grow out from that corner. */
+.expanded[data-align="left"] {
+  left: 0;
+  transform: none;
+}
+
+.expanded[data-align="right"] {
+  left: auto;
+  right: 0;
+  transform: none;
 }

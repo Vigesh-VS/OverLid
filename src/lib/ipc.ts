@@ -40,9 +40,22 @@ export interface MediaState {
 
 export type CaptureMode = "always" | "prompterOnly" | "never";
 export type IslandPosition = "center" | "left" | "right";
+export type VisibilityMode = "alwaysOnTop" | "selectedApps" | "normal";
 
 export interface Settings {
-  general: { position: IslandPosition; offsetX: number; hideFromCapture: CaptureMode };
+  general: {
+    position: IslandPosition;
+    offsetX: number;
+    hideFromCapture: CaptureMode;
+    visibility: VisibilityMode;
+    selectedApps: string[];
+    uiScale: number;
+    expandedWidth: number;
+    pillHeight: number;
+    closeDelayMs: number;
+    indicators: { media: boolean; focus: boolean; usage: boolean; quickAction: boolean };
+    welcomeSeen: boolean;
+  };
   peeks: {
     lockKeys: boolean;
     battery: boolean;
@@ -60,6 +73,9 @@ export interface Settings {
   };
   code: {
     enabled: boolean;
+    /** Explicitly connected providers in order; the first is primary. */
+    connected: string[];
+    waitingChime: "off" | "once" | "every2Min";
     pollSecs: number;
     port: number;
     warnPct: number;
@@ -84,6 +100,31 @@ export interface Settings {
     captureHintSeen: boolean;
     shortcuts: PrompterShortcuts;
   };
+  quickAction: QuickAction;
+}
+
+export type QuickKind = "none" | "launch" | "url" | "pomodoro" | "prompter" | "media";
+
+export interface QuickAction {
+  kind: QuickKind;
+  payload: string;
+  /** Built-in icon name, or "app" to use iconData. */
+  icon: string;
+  iconData: string | null;
+  tooltip: string;
+}
+
+export interface AppIcon {
+  width: number;
+  height: number;
+  /** Base64 RGBA, top-down. */
+  rgba: string;
+}
+
+export interface RunningApp {
+  name: string;
+  exe: string;
+  path: string;
 }
 
 export type TimingMode = "speed" | "lines" | "duration";
@@ -220,6 +261,7 @@ export interface AgentSession {
   tool: string | null;
   turnStartedAt: string | null;
   updatedAt: string;
+  acknowledged: boolean;
 }
 
 export interface HookStatus {
@@ -297,11 +339,17 @@ export const commands = {
   pomoSkip: () => invoke<void>("pomo_skip"),
   pomoReset: () => invoke<void>("pomo_reset"),
   pomoHistory: () => invoke<Record<string, DayStats>>("pomo_history"),
+  pomoSetLength: (phase: PomoPhase, minutes: number) =>
+    invoke<void>("pomo_set_length", { phase, minutes: Math.round(minutes) }),
 
   codeUsage: () => invoke<ProviderStatus[]>("code_usage"),
   codeRefreshUsage: () => invoke<void>("code_refresh_usage"),
   codeSessions: () => invoke<AgentSession[]>("code_sessions"),
   codeOpenFolder: (sessionId: string) => invoke<void>("code_open_folder", { sessionId }),
+  codeDismiss: (sessionId: string) => invoke<void>("code_dismiss", { sessionId }),
+  quickActionRun: () => invoke<void>("quick_action_run"),
+  appIcon: (path: string) => invoke<AppIcon>("app_icon", { path }),
+  listRunningApps: () => invoke<RunningApp[]>("list_running_apps"),
   codeHookStatus: () => invoke<HookStatus>("code_hook_status"),
   codeConnect: () => invoke<HookChangeReport>("code_connect"),
   codeDisconnect: () => invoke<HookChangeReport>("code_disconnect"),
@@ -345,6 +393,8 @@ export interface EventPayloads {
   "code://session": AgentSession[];
   "prompter://command": PrompterAction;
   "prompter://scripts": null;
+  /** Quick action asked to start the prompter; payload is a script id or "". */
+  "prompter://start": string;
   "voice://level": VoiceLevel;
   "voice://status": VoiceStatus;
 }

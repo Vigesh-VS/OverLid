@@ -95,7 +95,7 @@ function StatCard({
   return (
     <div className={styles.card}>
       <div className={styles.ring}>
-        <Ring size={96} stroke={8} value={value} color={color} />
+        <Ring size={80} stroke={7} value={value} color={color} />
         <span className={styles.ringValue} style={{ color }}>
           {big}
         </span>

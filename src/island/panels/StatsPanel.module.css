@@ -1,30 +1,29 @@
 .panel {
-  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ol-space-3);
 }
 
 .rings {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--ol-space-3);
 }
 
 .card {
-  padding: 18px 16px;
+  padding: var(--ol-space-5) var(--ol-space-6);
   border-radius: var(--ol-card-radius);
   background: var(--ol-surface);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--ol-space-3);
 }
 
 .ring {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 80px;
+  height: 80px;
 }
 
 .ringValue {
@@ -33,7 +32,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -58,12 +57,12 @@
 
 .facts {
   display: flex;
-  gap: 10px;
+  gap: var(--ol-space-3);
 }
 
 .fact {
   flex: 1;
-  padding: 12px 16px;
+  padding: var(--ol-space-4) var(--ol-space-6);
   border-radius: 14px;
   background: var(--ol-surface);
   display: flex;
@@ -83,7 +82,7 @@
 }
 
 .loading {
-  height: 100%;
+  padding: 40px 0;
   display: flex;
   align-items: center;
   justify-content: center;

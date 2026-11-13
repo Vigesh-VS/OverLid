@@ -1,9 +1,11 @@
 mod app_windows;
 mod codenotch;
+mod foreground;
 mod fullscreen;
 mod media;
 mod peek;
 mod pomodoro;
+mod quick_action;
 mod settings;
 mod system;
 mod teleprompter;
@@ -15,8 +17,13 @@ use tauri::AppHandle;
 
 /// Side effects of a settings change, applied after the new values are saved.
 pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new: &settings::Settings) {
-    if old.general.position != new.general.position || old.general.offset_x != new.general.offset_x {
+    let (o, n) = (&old.general, &new.general);
+    if o.position != n.position || o.offset_x != n.offset_x || o.ui_scale != n.ui_scale {
         window::reposition(app);
+        window::refresh_attention_dot(app);
+    }
+    if o.visibility != n.visibility || o.selected_apps != n.selected_apps {
+        foreground::apply(app);
     }
     if old.general.hide_from_capture != new.general.hide_from_capture {
         window::apply_protection(app);
@@ -60,6 +67,7 @@ pub fn run() {
             window::set_hit_rect,
             window::island_flags,
             app_windows::open_settings_window,
+            foreground::list_running_apps,
             app_windows::autostart_get,
             app_windows::autostart_set,
             app_windows::open_repo,
@@ -81,6 +89,7 @@ pub fn run() {
             pomodoro::pomo_skip,
             pomodoro::pomo_reset,
             pomodoro::pomo_history,
+            pomodoro::pomo_set_length,
             codenotch::code_usage,
             codenotch::code_refresh_usage,
             codenotch::code_hook_status,
@@ -88,6 +97,9 @@ pub fn run() {
             codenotch::code_disconnect,
             codenotch::sessions::code_sessions,
             codenotch::sessions::code_open_folder,
+            codenotch::sessions::code_dismiss,
+            quick_action::quick_action_run,
+            quick_action::app_icon,
             teleprompter::prompter_set_active,
             teleprompter::scripts::scripts_list,
             teleprompter::scripts::script_create,
@@ -113,6 +125,7 @@ pub fn run() {
             media::start(handle);
             system::start(handle);
             fullscreen::start(handle);
+            foreground::start(handle);
             pomodoro::start(handle);
             codenotch::sessions::start(handle);
             codenotch::hook_server::start(handle);

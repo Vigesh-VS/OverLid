@@ -27,8 +27,11 @@ export function startBridge(): void {
   void on("island://peek", (peek) => {
     useIsland.getState().pushPeek(peek);
     // Stay quiet while presenting; the peek waits in the queue.
-    if (peek.sound && usePrompter.getState().status === "idle") {
-      chime(peek.kind === "agentWaiting" ? "attention" : "done");
+    if (!peek.sound || usePrompter.getState().status !== "idle") return;
+    if (peek.kind === "agentWaiting") {
+      if (useSystem.getState().settings?.code.waitingChime !== "off") chime("attention");
+    } else {
+      chime("done");
     }
   });
   void on("media://update", (media) => useMedia.getState().setMedia(media));
@@ -40,6 +43,11 @@ export function startBridge(): void {
   void on("code://session", (sessions) => useCode.getState().setSessions(sessions));
   void on("prompter://command", (action) => usePrompter.getState().handle(action));
   void on("prompter://scripts", () => loadScripts());
+  void on("prompter://start", (scriptId) => {
+    const p = usePrompter.getState();
+    const script = p.scripts.find((x) => x.id === scriptId);
+    p.start(script);
+  });
   void on("voice://level", (v) => {
     if (v.owner !== "prompter") return;
     voiceLevel.level = v.level;
@@ -61,3 +69,16 @@ export function startBridge(): void {
 function loadScripts(): void {
   commands.scriptsList().then((s) => usePrompter.getState().setScripts(s), ignore);
 }
+
+/** "Every 2 min": keep reminding while an agent is still waiting. */
+const REMIND_MS = 2 * 60 * 1000;
+let reminder: number | undefined;
+useCode.subscribe((state, prev) => {
+  if (state.attention?.id === prev.attention?.id && !!state.attention === !!prev.attention) return;
+  window.clearInterval(reminder);
+  if (!state.attention) return;
+  reminder = window.setInterval(() => {
+    const repeat = useSystem.getState().settings?.code.waitingChime === "every2Min";
+    if (repeat && useCode.getState().attention && usePrompter.getState().status === "idle") chime("attention");
+  }, REMIND_MS);
+});

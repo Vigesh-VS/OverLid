@@ -1,13 +1,12 @@
 .panel {
-  height: 100%;
   display: flex;
-  gap: 20px;
-  padding: 0 4px;
+  gap: var(--ol-space-6);
+  padding: 0 var(--ol-space-1);
 }
 
 .art {
-  width: 168px;
-  height: 168px;
+  width: 136px;
+  height: 136px;
   flex-shrink: 0;
   padding: 0;
   border: 0;
@@ -51,7 +50,7 @@
 .meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--ol-space-1);
   min-width: 0;
 }
 
@@ -82,7 +81,7 @@
 }
 
 .title {
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -139,7 +138,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: var(--ol-space-6);
 }
 
 .skip,
@@ -152,8 +151,8 @@
 }
 
 .skip {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   background: transparent;
   color: var(--ol-text);
 }
@@ -163,14 +162,14 @@
 }
 
 .play {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   background: var(--ol-text);
   color: var(--ol-black);
 }
 
 .empty {
-  height: 100%;
+  padding: 28px var(--ol-space-6);
   display: flex;
   flex-direction: column;
   align-items: center;

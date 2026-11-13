@@ -128,3 +128,21 @@ export function StopIcon({ size = 14, color = "currentColor" }: IconProps) {
     </svg>
   );
 }
+
+export function ResetIcon(props: IconProps) {
+  return (
+    <Stroke {...props} width={2.2}>
+      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+      <path d="M4 4v4.5h4.5" />
+    </Stroke>
+  );
+}
+
+export function SkipIcon(props: IconProps) {
+  return (
+    <Stroke {...props} width={2.2}>
+      <path d="m6 6 7 6-7 6Z" />
+      <path d="M17 6v12" />
+    </Stroke>
+  );
+}

@@ -11,11 +11,18 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{
+    AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
+};
 
 use crate::settings::{self, CaptureMode, Position};
 
 pub const ISLAND_LABEL: &str = "island";
+pub const DOT_LABEL: &str = "dot";
+/// Logical size of the "agent needs you" dot window shown while the island is hidden.
+const DOT_W: f64 = 36.0;
+const DOT_H: f64 = 14.0;
 pub const HOVER_EVENT: &str = "island://hover";
 pub const STATE_EVENT: &str = "island://state";
 
@@ -71,6 +78,70 @@ pub fn setup(app: &AppHandle) -> anyhow::Result<()> {
     apply_protection(app);
     win.show()?;
     spawn_hover_loop(app.clone(), win);
+    create_dot(app);
+    Ok(())
+}
+
+/// The tiny amber dot that stays at the top edge when the island is hidden
+/// but an agent needs you. Created hidden up front: building windows later
+/// from a sync command can deadlock WebView2.
+fn create_dot(app: &AppHandle) {
+    let built = WebviewWindowBuilder::new(app, DOT_LABEL, WebviewUrl::App("index.html?window=dot".into()))
+        .title("Overlid")
+        .inner_size(DOT_W, DOT_H)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .visible(false)
+        .build();
+    if let Err(e) = built {
+        log::warn!("couldn't create the attention dot: {e}");
+    }
+}
+
+/// Show the dot only while the island is hidden and an agent is waiting.
+pub fn refresh_attention_dot(app: &AppHandle) {
+    let Some(dot) = app.get_webview_window(DOT_LABEL) else { return };
+    let f = flags(app);
+    let hidden = f.paused || (f.fullscreen && !f.prompter);
+    let show = hidden && crate::codenotch::sessions::needs_attention(app).is_some();
+    let result = if show {
+        place_dot(app, &dot).and_then(|()| {
+            dot.show()?;
+            Ok(())
+        })
+    } else {
+        dot.hide().map_err(Into::into)
+    };
+    if let Err(e) = result {
+        log::debug!("attention dot update failed: {e:#}");
+    }
+}
+
+fn place_dot(app: &AppHandle, dot: &WebviewWindow) -> anyhow::Result<()> {
+    let island = island(app)?;
+    let monitor = match island.primary_monitor()? {
+        Some(m) => m,
+        None => island.current_monitor()?.context("no monitor found")?,
+    };
+    let general = settings::current(app).general;
+    let scale = monitor.scale_factor();
+    let w = (DOT_W * scale).round() as i32;
+    let origin = monitor.position();
+    let monitor_w = monitor.size().width as i32;
+    let offset = (f64::from(general.offset_x) * scale).round() as i32;
+    let edge = (60.0 * scale).round() as i32;
+    let x = match general.position {
+        Position::Center => origin.x + (monitor_w - w) / 2 + offset,
+        Position::Left => origin.x + offset.max(0) + edge,
+        Position::Right => origin.x + monitor_w - w - offset.max(0) - edge,
+    };
+    dot.set_size(PhysicalSize::new(w.max(1) as u32, (DOT_H * scale).round() as u32))?;
+    dot.set_position(PhysicalPosition::new(x, origin.y))?;
     Ok(())
 }
 
@@ -96,12 +167,13 @@ pub fn reposition(app: &AppHandle) {
 }
 
 fn place(win: &WebviewWindow, monitor: &Monitor, general: &settings::General) -> anyhow::Result<()> {
-    let scale = monitor.scale_factor();
+    // Window grows with the island's own UI scale so nothing gets clipped.
+    let scale = monitor.scale_factor() * general.ui_scale;
     let width = (WINDOW_W * scale).round() as i32;
     let height = (WINDOW_H * scale).round() as u32;
     let origin = monitor.position();
     let monitor_w = monitor.size().width as i32;
-    let offset = (f64::from(general.offset_x) * scale).round() as i32;
+    let offset = (f64::from(general.offset_x) * monitor.scale_factor()).round() as i32;
     let x = match general.position {
         Position::Center => origin.x + (monitor_w - width) / 2 + offset,
         Position::Left => origin.x + offset.max(0),
@@ -132,6 +204,8 @@ fn update_flags(app: &AppHandle, f: impl FnOnce(&mut IslandFlags)) {
     };
     apply_visibility(app, flags);
     apply_protection(app);
+    crate::foreground::apply(app);
+    refresh_attention_dot(app);
     crate::tray::sync(app);
     let _ = app.emit(STATE_EVENT, flags);
 }

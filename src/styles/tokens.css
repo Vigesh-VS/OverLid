@@ -1,6 +1,19 @@
 /* Overlid design tokens. Re-theme the whole island from here.
    Source: design/mockups/*.dc.html */
 :root {
+  /* Global island scale (Settings › General › Size). Everything in the island
+     is drawn at this zoom, so text, icons, rings, radii and the hit rect all
+     scale together. */
+  --ui-scale: 1;
+
+  /* Spacing scale: use these instead of ad-hoc values. */
+  --ol-space-1: 4px;
+  --ol-space-2: 6px;
+  --ol-space-3: 8px;
+  --ol-space-4: 10px;
+  --ol-space-5: 12px;
+  --ol-space-6: 16px;
+
   /* Colour */
   --ol-black: #000000;
   --ol-surface: #111113;
@@ -32,6 +45,10 @@
   --ol-pill-radius: 17px;
   --ol-pill-ear: 12px;
 
+  /* Lock-key toast: the pill widens in place for ~1 s */
+  --ol-lock-w: 176px;
+  --ol-lock-ms: 1000;
+
   /* Peek (short = one line, tall = title + subtitle) */
   --ol-peek-w-short: 320px;
   --ol-peek-h-short: 52px;
@@ -46,13 +63,14 @@
 
   /* Expanded island */
   --ol-expanded-w: 680px;
-  /* Expanded height per panel (the island grows to fit each one) */
-  --ol-panel-h-home: 362px;
-  --ol-panel-h-media: 262px;
-  --ol-panel-h-code: 372px;
-  --ol-panel-h-prompter: 330px;
-  --ol-panel-h-focus: 300px;
-  --ol-panel-h-stats: 330px;
+  /* Expanded height per panel before it has been measured. Once a panel has
+     rendered, the island grows to fit its content exactly. */
+  --ol-panel-h-home: 280px;
+  --ol-panel-h-media: 210px;
+  --ol-panel-h-code: 300px;
+  --ol-panel-h-prompter: 270px;
+  --ol-panel-h-focus: 200px;
+  --ol-panel-h-stats: 250px;
   --ol-expanded-radius: 32px;
   --ol-expanded-ear: 18px;
   --ol-tab-h: 30px;

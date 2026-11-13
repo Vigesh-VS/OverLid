@@ -338,6 +338,7 @@ export function PrompterView() {
 function ResizeHandles({ width, height }: { width: number; height: number }) {
   const setArea = usePrompter((s) => s.setArea);
   const position = useSystem((s) => s.settings?.general.position ?? "center");
+  const scale = useSystem((s) => s.settings?.general.uiScale ?? 1);
   const drag = useRef<{ x: number; y: number; w: number; h: number; edge: "left" | "right" | "bottom" } | null>(null);
 
   const begin = (edge: "left" | "right" | "bottom") => (e: PointerEvent<HTMLDivElement>) => {
@@ -351,13 +352,14 @@ function ResizeHandles({ width, height }: { width: number; height: number }) {
   const move = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d) return;
-    const dx = e.clientX - d.x;
+    // Pointer moves in screen px; the island is drawn at --ui-scale.
+    const dx = (e.clientX - d.x) / scale;
     // A centred island grows on both sides, so each side moves half as far.
     const factor = position === "center" ? 2 : 1;
     let w = d.w;
     if (d.edge === "right") w = d.w + dx * factor;
     if (d.edge === "left") w = d.w - dx * factor;
-    const h = d.edge === "bottom" ? d.h + (e.clientY - d.y) : d.h;
+    const h = d.edge === "bottom" ? d.h + (e.clientY - d.y) / scale : d.h;
     setArea({
       width: Math.round(Math.min(AREA_LIMITS.maxW, Math.max(AREA_LIMITS.minW, w))),
       height: Math.round(Math.min(AREA_LIMITS.maxH, Math.max(AREA_LIMITS.minH, h))),

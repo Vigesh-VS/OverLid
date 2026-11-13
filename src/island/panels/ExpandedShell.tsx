@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { GearIcon } from "../../components/icons";
 import { commands, run } from "../../lib/ipc";
@@ -21,12 +21,25 @@ const PANEL_VIEWS: Record<PanelId, () => ReactNode> = {
   stats: () => <StatsPanel />,
 };
 
-export function ExpandedShell() {
+export function ExpandedShell({ width }: { width: number }) {
   const panel = useIsland((s) => s.panel);
   const setPanel = useIsland((s) => s.setPanel);
+  const setPanelHeight = useIsland((s) => s.setPanelHeight);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // The island grows to exactly this content's height: no dead space.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setPanelHeight(panel, Math.ceil(el.offsetHeight));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [panel, setPanelHeight]);
 
   return (
-    <div className={styles.shell}>
+    <div ref={ref} className={styles.shell} style={{ width }}>
       <nav className={styles.tabs} aria-label="Island panels">
         {PANELS.map((p) => (
           <button

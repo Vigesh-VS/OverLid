@@ -19,7 +19,7 @@ const HISTORY_KEY: &str = "history";
 /// Keep a year of daily history.
 const HISTORY_DAYS: usize = 366;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Phase {
     Focus,
@@ -291,6 +291,28 @@ pub fn pomo_reset(app: AppHandle) {
     with(&app, |inner| {
         inner.round = 1;
         inner.enter(&app, Phase::Focus, false);
+    });
+}
+
+/// Set a phase's length (minutes, 1–180) and persist it. If that phase is
+/// the current one, it restarts with the new length, keeping run/pause state.
+#[tauri::command]
+pub fn pomo_set_length(app: AppHandle, phase: Phase, minutes: u32) {
+    let minutes = minutes.clamp(1, 180);
+    let mut next = settings::current(&app);
+    match phase {
+        Phase::Focus => next.focus.focus_min = minutes,
+        Phase::ShortBreak => next.focus.short_min = minutes,
+        Phase::LongBreak => next.focus.long_min = minutes,
+    }
+    // Saving triggers on_config_changed, which handles a paused timer.
+    settings::replace(&app, next);
+    with(&app, |inner| {
+        if inner.phase == phase && inner.ends_at.is_some() {
+            let length = phase_length(&app, phase);
+            inner.remaining = length;
+            inner.ends_at = Some(Instant::now() + length);
+        }
     });
 }
 

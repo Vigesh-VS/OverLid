@@ -45,6 +45,8 @@ pub struct Session {
     /// When the current turn started (busy since).
     pub turn_started_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
+    /// The user clicked the "needs you" alert for the current wait.
+    pub acknowledged: bool,
 }
 
 #[derive(Default)]
@@ -83,6 +85,7 @@ fn emit(app: &AppHandle) {
     if let Err(e) = app.emit(SESSION_EVENT, list(app)) {
         log::warn!("emit {SESSION_EVENT} failed: {e}");
     }
+    crate::window::refresh_attention_dot(app);
 }
 
 fn label_for(cwd: &str) -> String {
@@ -136,6 +139,7 @@ pub fn handle_hook(app: &AppHandle, payload: &Value) {
                 tool: None,
                 turn_started_at: None,
                 updated_at: now,
+                acknowledged: false,
             });
             if !cwd.is_empty() && session.cwd != cwd {
                 session.label = label_for(&cwd);
@@ -180,6 +184,9 @@ pub fn handle_hook(app: &AppHandle, payload: &Value) {
                             .to_owned()
                     };
                     let changed = previous != Status::Waiting || session.message.as_deref() != Some(&message);
+                    if changed {
+                        session.acknowledged = false;
+                    }
                     session.status = Status::Waiting;
                     session.message = Some(message.clone());
                     changed.then(|| Alert::Waiting(session.label.clone(), message))
@@ -256,6 +263,25 @@ fn sweep(app: &AppHandle) {
 #[tauri::command]
 pub fn code_sessions(app: AppHandle) -> Vec<Session> {
     list(&app)
+}
+
+/// The first waiting session the user hasn't acknowledged yet.
+pub fn needs_attention(app: &AppHandle) -> Option<Session> {
+    list(app)
+        .into_iter()
+        .find(|s| s.status == Status::Waiting && !s.acknowledged)
+}
+
+/// Clear the "needs you" alert for a session until it waits again.
+#[tauri::command]
+pub fn code_dismiss(app: AppHandle, session_id: String) {
+    if let Some(state) = app.try_state::<Sessions>()
+        && let Ok(mut map) = state.0.lock()
+        && let Some(s) = map.get_mut(&session_id)
+    {
+        s.acknowledged = true;
+    }
+    emit(&app);
 }
 
 /// Open a session's working folder in Explorer.

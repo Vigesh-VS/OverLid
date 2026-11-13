@@ -5,6 +5,8 @@ import type { AgentSession, HookStatus, ProviderStatus, UsageWindow } from "../l
 interface CodeStore {
   usage: ProviderStatus[];
   sessions: AgentSession[];
+  /** Waiting session the user hasn't acknowledged: drives the bell. */
+  attention: AgentSession | null;
   hooks: HookStatus | null;
   setUsage: (usage: ProviderStatus[]) => void;
   setSessions: (sessions: AgentSession[]) => void;
@@ -14,9 +16,11 @@ interface CodeStore {
 export const useCode = create<CodeStore>((set) => ({
   usage: [],
   sessions: [],
+  attention: null,
   hooks: null,
   setUsage: (usage) => set({ usage }),
-  setSessions: (sessions) => set({ sessions }),
+  setSessions: (sessions) =>
+    set({ sessions, attention: sessions.find((s) => s.status === "waiting" && !s.acknowledged) ?? null }),
   setHooks: (hooks) => set({ hooks }),
 }));
 
@@ -45,6 +49,13 @@ export const LEVEL_COLOR: Record<UsageLevel, string> = {
   warn: "var(--ol-amber)",
   critical: "var(--ol-red)",
 };
+
+/** The primary (first connected) provider's 5-hour window, or its first window. */
+export function primaryUsage(usage: ProviderStatus[]): UsageWindow | null {
+  const primary = usage[0];
+  const windows = primary?.snapshot?.windows ?? [];
+  return windows.find((w) => w.key === "five_hour" || w.key === "primary") ?? windows[0] ?? null;
+}
 
 /** Highest-used window across providers, or null when nothing is known. */
 export function hottestWindow(usage: ProviderStatus[]): UsageWindow | null {

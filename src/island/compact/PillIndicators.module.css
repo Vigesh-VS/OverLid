@@ -1,0 +1,103 @@
+.quick,
+.bell {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick {
+  background: var(--ol-surface-raised);
+  color: var(--ol-text);
+}
+
+.quick:hover {
+  background: var(--ol-track);
+}
+
+.quick img {
+  display: block;
+  border-radius: 4px;
+}
+
+/* A tiny confirmation when the action runs. */
+.pulse {
+  animation: pulse 420ms ease-out;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 0.5);
+    transform: scale(0.88);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgb(255 255 255 / 0);
+    transform: scale(1);
+  }
+}
+
+/* Impossible to miss: a ringing bell with a pulsing amber glow. */
+.bell {
+  background: rgb(255 178 36 / 0.18);
+  color: var(--ol-amber);
+  animation: glow 1.6s ease-in-out infinite;
+}
+
+.bell svg {
+  transform-origin: 50% 15%;
+  animation: ring 1.6s ease-in-out infinite;
+}
+
+@keyframes ring {
+  0%,
+  45%,
+  100% {
+    transform: rotate(0);
+  }
+  5% {
+    transform: rotate(16deg);
+  }
+  12% {
+    transform: rotate(-14deg);
+  }
+  19% {
+    transform: rotate(10deg);
+  }
+  26% {
+    transform: rotate(-8deg);
+  }
+  33% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 178 36 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgb(255 178 36 / 0.35);
+  }
+}
+
+.quick:focus-visible,
+.bell:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bell,
+  .bell svg,
+  .pulse {
+    animation: none;
+  }
+  .bell {
+    box-shadow: 0 0 8px 2px rgb(255 178 36 / 0.35);
+  }
+}

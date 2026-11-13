@@ -29,6 +29,38 @@ pub enum Position {
     Right,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Visibility {
+    /// Topmost over everything.
+    #[default]
+    AlwaysOnTop,
+    /// Topmost only while one of `selected_apps` is the foreground window.
+    SelectedApps,
+    /// A normal window that goes behind whatever you open.
+    Normal,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Indicators {
+    pub media: bool,
+    pub focus: bool,
+    pub usage: bool,
+    pub quick_action: bool,
+}
+
+impl Default for Indicators {
+    fn default() -> Self {
+        Self {
+            media: true,
+            focus: true,
+            usage: true,
+            quick_action: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct General {
@@ -37,6 +69,20 @@ pub struct General {
     /// Logical px nudge: from the centre, or in from the corner.
     pub offset_x: i32,
     pub hide_from_capture: CaptureMode,
+    pub visibility: Visibility,
+    /// Lower-case exe file names, e.g. "obs64.exe".
+    pub selected_apps: Vec<String>,
+    /// Scales everything in the island (0.75–1.5).
+    pub ui_scale: f64,
+    /// Width of the expanded island in logical px at 100 % scale.
+    pub expanded_width: u32,
+    /// Height of the collapsed pill in logical px at 100 % scale.
+    pub pill_height: u32,
+    /// How long the island stays open after the cursor leaves.
+    pub close_delay_ms: u32,
+    pub indicators: Indicators,
+    /// The first-run welcome screen has been shown.
+    pub welcome_seen: bool,
 }
 
 impl Default for General {
@@ -45,6 +91,14 @@ impl Default for General {
             position: Position::Center,
             offset_x: 0,
             hide_from_capture: CaptureMode::PrompterOnly,
+            visibility: Visibility::AlwaysOnTop,
+            selected_apps: Vec::new(),
+            ui_scale: 1.0,
+            expanded_width: 680,
+            pill_height: 34,
+            close_delay_ms: 400,
+            indicators: Indicators::default(),
+            welcome_seen: false,
         }
     }
 }
@@ -95,10 +149,22 @@ impl Default for Focus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WaitingChime {
+    Off,
+    #[default]
+    Once,
+    Every2Min,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Code {
     pub enabled: bool,
+    /// Providers the user explicitly connected, in order; the first is primary.
+    pub connected: Vec<String>,
+    pub waiting_chime: WaitingChime,
     pub poll_secs: u64,
     pub port: u16,
     pub warn_pct: f64,
@@ -109,6 +175,8 @@ impl Default for Code {
     fn default() -> Self {
         Self {
             enabled: true,
+            connected: Vec::new(),
+            waiting_chime: WaitingChime::Once,
             poll_secs: 120,
             port: 47823,
             warn_pct: 80.0,
@@ -206,6 +274,45 @@ impl Default for Prompter {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuickKind {
+    None,
+    /// Open an app; payload = .exe path.
+    Launch,
+    /// Open a URL or folder; payload = the URL or path.
+    Url,
+    #[default]
+    Pomodoro,
+    /// Start the teleprompter; payload = script id (empty = selected script).
+    Prompter,
+    Media,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct QuickAction {
+    pub kind: QuickKind,
+    pub payload: String,
+    /// Built-in icon name, or "app" to use `icon_data`.
+    pub icon: String,
+    /// PNG data URL of an app's own icon.
+    pub icon_data: Option<String>,
+    pub tooltip: String,
+}
+
+impl Default for QuickAction {
+    fn default() -> Self {
+        Self {
+            kind: QuickKind::Pomodoro,
+            payload: String::new(),
+            icon: "timer".into(),
+            icon_data: None,
+            tooltip: "Start focus timer".into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
@@ -214,12 +321,23 @@ pub struct Settings {
     pub focus: Focus,
     pub code: Code,
     pub prompter: Prompter,
+    pub quick_action: QuickAction,
 }
 
 impl Settings {
     /// Clamp everything into ranges the rest of the app can rely on.
     fn sanitized(mut self) -> Self {
-        self.general.offset_x = self.general.offset_x.clamp(-600, 600);
+        let g = &mut self.general;
+        g.offset_x = g.offset_x.clamp(-600, 600);
+        g.ui_scale = (g.ui_scale.clamp(0.75, 1.5) * 20.0).round() / 20.0;
+        g.expanded_width = g.expanded_width.clamp(560, 760);
+        g.pill_height = g.pill_height.clamp(28, 44);
+        g.close_delay_ms = (g.close_delay_ms.clamp(200, 1000) / 100) * 100;
+        for app in &mut g.selected_apps {
+            *app = app.trim().to_ascii_lowercase();
+        }
+        g.selected_apps.retain(|a| !a.is_empty());
+        g.selected_apps.dedup();
 
         let f = &mut self.focus;
         f.focus_min = f.focus_min.clamp(1, 180);
@@ -228,6 +346,7 @@ impl Settings {
         f.long_every = f.long_every.clamp(1, 12);
 
         let c = &mut self.code;
+        c.connected.dedup();
         c.poll_secs = c.poll_secs.clamp(60, 3600);
         if c.port < 1024 {
             c.port = Code::default().port;
