@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
 
 import { commands, inTauri } from "../lib/ipc";
 import { useIsland } from "../stores/island";
-import { readIslandTokens } from "../styles/tokens";
+import { readIslandTokens, type Shape } from "../styles/tokens";
 import { CompactBar } from "./compact/CompactBar";
 import { ExpandedShell } from "./panels/ExpandedShell";
+import { PeekView } from "./peek/PeekView";
 import styles from "./Island.module.css";
 
 const fadeOut: Transition = { duration: 0.08 };
@@ -14,11 +15,25 @@ const fadeIn: Transition = { duration: 0.16, delay: 0.08 };
 export function Island() {
   const [tokens] = useState(readIslandTokens);
   const reduceMotion = useReducedMotion();
-  const { mode, hovered, panel, setMode, setHovered } = useIsland();
+  const { mode, hovered, panel, peek, setMode, setHovered, nextPeek, clearPeeks } = useIsland();
   const expanded = mode === "expanded";
-  const shape = expanded
-    ? { ...tokens.expanded, height: tokens.expanded.heights[panel] }
-    : tokens.pill;
+
+  let view: "compact" | "peek" | "expanded" = "compact";
+  let shape: Shape = tokens.pill;
+  let content: ReactNode = <CompactBar />;
+  let key = "compact";
+
+  if (expanded) {
+    view = "expanded";
+    shape = { ...tokens.expanded, height: tokens.expanded.heights[panel] };
+    content = <ExpandedShell />;
+    key = "expanded";
+  } else if (peek) {
+    view = "peek";
+    shape = peek.subtitle ? tokens.peek.tall : tokens.peek.short;
+    content = <PeekView peek={peek} />;
+    key = `peek-${peek.kind}-${peek.title}-${peek.badge ?? ""}`;
+  }
 
   const spring: Transition = reduceMotion
     ? { duration: 0 }
@@ -35,6 +50,19 @@ export function Island() {
       return () => window.clearTimeout(id);
     }
   }, [hovered, expanded, setMode, tokens]);
+
+  // Opening the island supersedes any pending peeks.
+  useEffect(() => {
+    if (expanded) clearPeeks();
+  }, [expanded, clearPeeks]);
+
+  // Each peek stays for a few seconds, then the next queued one shows.
+  useEffect(() => {
+    if (!peek || expanded) return;
+    const ms = peek.kind === "agentWaiting" ? 4500 : 3000;
+    const id = window.setTimeout(nextPeek, ms);
+    return () => window.clearTimeout(id);
+  }, [peek, expanded, nextPeek]);
 
   // Report the target shape up front, so the cursor stays "inside" while the island grows.
   useEffect(() => {
@@ -68,34 +96,23 @@ export function Island() {
         transition={spring}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        data-view={view}
       >
         <Ear side="left" size={shape.ear} transition={spring} />
         <Ear side="right" size={shape.ear} transition={spring} />
 
         <div className={styles.clip}>
           <AnimatePresence initial={false}>
-            {expanded ? (
-              <motion.div
-                key="expanded"
-                className={styles.expanded}
-                style={{ height: shape.height }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: fadeIn }}
-                exit={{ opacity: 0, transition: fadeOut }}
-              >
-                <ExpandedShell />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="compact"
-                className={styles.compact}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: fadeIn }}
-                exit={{ opacity: 0, transition: fadeOut }}
-              >
-                <CompactBar />
-              </motion.div>
-            )}
+            <motion.div
+              key={key}
+              className={view === "expanded" ? styles.expanded : styles.fill}
+              style={view === "expanded" ? { height: shape.height } : undefined}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: fadeIn }}
+              exit={{ opacity: 0, transition: fadeOut }}
+            >
+              {content}
+            </motion.div>
           </AnimatePresence>
         </div>
       </motion.div>

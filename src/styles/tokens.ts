@@ -9,8 +9,16 @@ function readNumber(name: string, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
+export interface Shape {
+  width: number;
+  height: number;
+  radius: number;
+  ear: number;
+}
+
 export interface IslandTokens {
-  pill: { width: number; height: number; radius: number; ear: number };
+  pill: Shape;
+  peek: { short: Shape; tall: Shape };
   expanded: { width: number; radius: number; ear: number; heights: Record<PanelId, number> };
   spring: { stiffness: number; damping: number };
   hoverInMs: number;
@@ -18,12 +26,28 @@ export interface IslandTokens {
 }
 
 export function readIslandTokens(): IslandTokens {
+  const peekRadius = readNumber("--ol-peek-radius", 26);
+  const peekEar = readNumber("--ol-peek-ear", 14);
   return {
     pill: {
       width: readNumber("--ol-pill-w", 200),
       height: readNumber("--ol-pill-h", 34),
       radius: readNumber("--ol-pill-radius", 17),
       ear: readNumber("--ol-pill-ear", 12),
+    },
+    peek: {
+      short: {
+        width: readNumber("--ol-peek-w-short", 320),
+        height: readNumber("--ol-peek-h-short", 52),
+        radius: peekRadius - 2,
+        ear: peekEar,
+      },
+      tall: {
+        width: readNumber("--ol-peek-w", 360),
+        height: readNumber("--ol-peek-h", 60),
+        radius: peekRadius,
+        ear: peekEar,
+      },
     },
     expanded: {
       width: readNumber("--ol-expanded-w", 680),

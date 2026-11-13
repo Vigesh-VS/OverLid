@@ -27,6 +27,14 @@
   --ol-pill-radius: 17px;
   --ol-pill-ear: 12px;
 
+  /* Peek (short = one line, tall = title + subtitle) */
+  --ol-peek-w-short: 320px;
+  --ol-peek-h-short: 52px;
+  --ol-peek-w: 360px;
+  --ol-peek-h: 60px;
+  --ol-peek-radius: 26px;
+  --ol-peek-ear: 14px;
+
   /* Expanded island */
   --ol-expanded-w: 680px;
   /* Expanded height per panel (the island grows to fit each one) */

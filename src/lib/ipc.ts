@@ -36,10 +36,127 @@ export interface MediaState {
   sessionCount: number;
 }
 
+// ---------- Settings ----------
+
+export type CaptureMode = "always" | "prompterOnly" | "never";
+
+export interface Settings {
+  general: { monitor: string | null; hideFromCapture: CaptureMode };
+  peeks: {
+    lockKeys: boolean;
+    battery: boolean;
+    agent: boolean;
+    usage: boolean;
+    focus: boolean;
+    sound: boolean;
+  };
+  focus: {
+    focusMin: number;
+    shortMin: number;
+    longMin: number;
+    longEvery: number;
+    autoStartBreaks: boolean;
+  };
+  code: {
+    enabled: boolean;
+    pollSecs: number;
+    port: number;
+    warnPct: number;
+    criticalPct: number;
+  };
+  prompter: {
+    fontFamily: string;
+    fontSize: number;
+    lineHeight: number;
+    color: string;
+    speed: number;
+    mirror: boolean;
+    width: number;
+    height: number;
+    voice: boolean;
+    voiceThreshold: number;
+    micDevice: string | null;
+    captureHintSeen: boolean;
+  };
+}
+
+export interface MonitorInfo {
+  name: string;
+  primary: boolean;
+  width: number;
+  height: number;
+}
+
+export interface IslandFlags {
+  paused: boolean;
+  gameMode: boolean;
+  fullscreen: boolean;
+  prompter: boolean;
+}
+
+// ---------- System ----------
+
+export interface Battery {
+  percent: number;
+  charging: boolean;
+  onAc: boolean;
+}
+
+export interface SystemTick {
+  cpuPercent: number;
+  cpuCores: number;
+  memUsed: number;
+  memTotal: number;
+  battery: Battery | null;
+  uptimeSecs: number;
+  diskFree: number | null;
+  diskTotal: number | null;
+}
+
+export interface LockKeys {
+  caps: boolean;
+  num: boolean;
+}
+
+// ---------- Peeks ----------
+
+export type PeekKind =
+  | "capsLock"
+  | "numLock"
+  | "charging"
+  | "onBattery"
+  | "lowBattery"
+  | "agentDone"
+  | "agentWaiting"
+  | "usage"
+  | "quotaBack"
+  | "focusDone";
+
+export type Tone = "neutral" | "good" | "warn" | "critical";
+
+export interface Peek {
+  kind: PeekKind;
+  tone: Tone;
+  title: string;
+  subtitle: string | null;
+  value: number | null;
+  badge: string | null;
+  sound: boolean;
+}
+
 // ---------- Commands ----------
 
 export const commands = {
   setHitRect: (rect: HitRect) => invoke<void>("set_hit_rect", { rect }),
+  islandFlags: () => invoke<IslandFlags>("island_flags"),
+  listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
+
+  settingsGet: () => invoke<Settings>("settings_get"),
+  settingsSet: (settings: Settings) => invoke<Settings>("settings_set", { settings }),
+
+  systemGet: () => invoke<SystemTick>("system_get"),
+  systemKeys: () => invoke<LockKeys>("system_keys"),
+  systemSetStatsActive: (active: boolean) => invoke<void>("system_set_stats_active", { active }),
 
   mediaGet: () => invoke<MediaState | null>("media_get"),
   mediaPlayPause: () => invoke<void>("media_play_pause"),
@@ -55,7 +172,13 @@ export const commands = {
 export interface EventPayloads {
   /** Cursor entered (true) or left (false) the current hit rect. */
   "island://hover": boolean;
+  "island://peek": Peek;
+  "island://state": IslandFlags;
   "media://update": MediaState | null;
+  "settings://changed": Settings;
+  "system://tick": SystemTick;
+  "system://keys": LockKeys;
+  "fullscreen://changed": boolean;
 }
 
 export function on<K extends keyof EventPayloads>(

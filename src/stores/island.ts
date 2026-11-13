@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import type { IslandFlags, Peek } from "../lib/ipc";
+
 export type IslandMode = "collapsed" | "expanded";
 export type PanelId = "home" | "media" | "code" | "prompter" | "focus" | "stats";
 
@@ -12,20 +14,44 @@ export const PANELS: ReadonlyArray<{ id: PanelId; label: string }> = [
   { id: "stats", label: "Stats" },
 ];
 
+const MAX_QUEUED_PEEKS = 6;
+
 interface IslandState {
   mode: IslandMode;
   hovered: boolean;
   panel: PanelId;
+  flags: IslandFlags;
+  /** Peek on screen right now, if any. */
+  peek: Peek | null;
+  queue: Peek[];
   setMode: (mode: IslandMode) => void;
   setHovered: (hovered: boolean) => void;
   setPanel: (panel: PanelId) => void;
+  setFlags: (flags: IslandFlags) => void;
+  pushPeek: (peek: Peek) => void;
+  /** Drop the current peek and show the next queued one. */
+  nextPeek: () => void;
+  clearPeeks: () => void;
 }
 
 export const useIsland = create<IslandState>((set) => ({
   mode: "collapsed",
   hovered: false,
   panel: "home",
+  flags: { paused: false, gameMode: false, fullscreen: false, prompter: false },
+  peek: null,
+  queue: [],
   setMode: (mode) => set({ mode }),
   setHovered: (hovered) => set({ hovered }),
   setPanel: (panel) => set({ panel }),
+  setFlags: (flags) => set({ flags }),
+  pushPeek: (peek) =>
+    set((s) => {
+      // Replace a queued peek of the same kind instead of stacking duplicates.
+      if (s.peek?.kind === peek.kind) return { peek };
+      const queue = [...s.queue.filter((p) => p.kind !== peek.kind), peek].slice(-MAX_QUEUED_PEEKS);
+      return s.peek ? { queue } : { peek: queue[0], queue: queue.slice(1) };
+    }),
+  nextPeek: () => set((s) => ({ peek: s.queue[0] ?? null, queue: s.queue.slice(1) })),
+  clearPeeks: () => set({ peek: null, queue: [] }),
 }));
