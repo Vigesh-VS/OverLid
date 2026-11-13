@@ -2,8 +2,10 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { Ring } from "../../components/Ring";
 import { formatCountdown } from "../../lib/format";
+import { LEVEL_COLOR, hottestWindow, useCode, usageLevel } from "../../stores/code";
 import { useMedia } from "../../stores/media";
 import { pomoActive, usePomodoro } from "../../stores/pomodoro";
+import { useSystem } from "../../stores/system";
 import { Clock } from "./Clock";
 import styles from "./CompactBar.module.css";
 
@@ -16,6 +18,9 @@ export function CompactBar() {
   const media = useMedia((s) => s.media);
   const accent = useMedia((s) => s.accent);
   const pomo = usePomodoro((s) => s.state);
+  const usage = useCode((s) => s.usage);
+  const warnPct = useSystem((s) => s.settings?.code.warnPct ?? 80);
+  const criticalPct = useSystem((s) => s.settings?.code.criticalPct ?? 95);
 
   const slots: ReactNode[] = [];
 
@@ -32,6 +37,17 @@ export function CompactBar() {
         <span className={pomo.running ? styles.pomoTime : `${styles.pomoTime} ${styles.paused}`}>
           {formatCountdown(pomo.remainingMs)}
         </span>
+      </span>,
+    );
+  }
+
+  const hot = hottestWindow(usage);
+  if (hot && hot.usedPercent >= warnPct && slots.length < 2) {
+    const color = LEVEL_COLOR[usageLevel(hot.usedPercent, warnPct, criticalPct)];
+    slots.push(
+      <span key="usage" className={styles.usage} style={{ color }}>
+        <Ring size={16} stroke={2.5} value={hot.usedPercent / 100} color={color} label={`${hot.label} usage`} />
+        <span className={styles.usagePct}>{Math.round(hot.usedPercent)}%</span>
       </span>,
     );
   }

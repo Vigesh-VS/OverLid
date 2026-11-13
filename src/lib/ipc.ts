@@ -163,6 +163,33 @@ export interface PomoState {
   today: DayStats;
 }
 
+// ---------- CodeNotch ----------
+
+export interface UsageWindow {
+  key: string;
+  label: string;
+  usedPercent: number;
+  /** ISO-8601 */
+  resetsAt: string | null;
+}
+
+export interface UsageSnapshot {
+  windows: UsageWindow[];
+  fetchedAt: string;
+  fidelity: "derived";
+}
+
+export type UsageState = "loading" | "ok" | "needsAuth" | "rateLimited" | "error" | "disabled";
+
+export interface ProviderStatus {
+  providerId: string;
+  displayName: string;
+  state: UsageState;
+  snapshot: UsageSnapshot | null;
+  message: string | null;
+  lastAttemptAt: string | null;
+}
+
 // ---------- Commands ----------
 
 export const commands = {
@@ -183,6 +210,9 @@ export const commands = {
   pomoSkip: () => invoke<void>("pomo_skip"),
   pomoReset: () => invoke<void>("pomo_reset"),
   pomoHistory: () => invoke<Record<string, DayStats>>("pomo_history"),
+
+  codeUsage: () => invoke<ProviderStatus[]>("code_usage"),
+  codeRefreshUsage: () => invoke<void>("code_refresh_usage"),
 
   mediaGet: () => invoke<MediaState | null>("media_get"),
   mediaPlayPause: () => invoke<void>("media_play_pause"),
@@ -206,6 +236,7 @@ export interface EventPayloads {
   "system://keys": LockKeys;
   "fullscreen://changed": boolean;
   "pomo://tick": PomoState;
+  "code://usage": ProviderStatus[];
 }
 
 export function on<K extends keyof EventPayloads>(

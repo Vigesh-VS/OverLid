@@ -96,3 +96,15 @@
 .paused {
   color: var(--ol-text-2);
 }
+
+.usage {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.usagePct {
+  font-size: var(--ol-fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

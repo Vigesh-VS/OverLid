@@ -1,3 +1,4 @@
+mod codenotch;
 mod fullscreen;
 mod media;
 mod peek;
@@ -19,6 +20,9 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
     }
     if old.focus != new.focus {
         pomodoro::on_config_changed(app);
+    }
+    if old.code != new.code {
+        codenotch::refresh_now(app);
     }
 }
 
@@ -54,6 +58,8 @@ pub fn run() {
             pomodoro::pomo_skip,
             pomodoro::pomo_reset,
             pomodoro::pomo_history,
+            codenotch::code_usage,
+            codenotch::code_refresh_usage,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -68,6 +74,7 @@ pub fn run() {
             system::start(handle);
             fullscreen::start(handle);
             pomodoro::start(handle);
+            codenotch::start(handle);
             Ok(())
         })
         .run(tauri::generate_context!());
