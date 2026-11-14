@@ -18,6 +18,8 @@ export const LIMITS = {
   zipRatio: 200,
   /** How long the Word parser may run. */
   docxMs: 10_000,
+  /** How long PDF text extraction may run in total. */
+  pdfMs: 20_000,
 } as const;
 
 export type FileKind = "text" | "docx" | "pdf";

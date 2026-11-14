@@ -93,21 +93,30 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
   const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
 
+  const deadline = Date.now() + LIMITS.pdfMs;
+  const tooSlow = new ImportError("This PDF took too long to read, so it was skipped.");
+  const task = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    isEvalSupported: false,
+    disableFontFace: true,
+    enableXfa: false,
+  });
+  // pdf.js parses in its own worker; destroying the task stops it.
+  const timer = window.setTimeout(() => void task.destroy(), LIMITS.pdfMs);
+
   let pdf;
   try {
-    pdf = await pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      isEvalSupported: false,
-      disableFontFace: true,
-      enableXfa: false,
-    }).promise;
+    pdf = await task.promise;
   } catch (e) {
+    window.clearTimeout(timer);
+    if (Date.now() >= deadline) throw tooSlow;
     const msg = String(e);
     if (/password/i.test(msg)) throw new ImportError("This PDF is password-protected. Remove the password and try again.");
     throw new ImportError("This PDF couldn't be read. It may be damaged.");
   }
 
   if (pdf.numPages > LIMITS.pdfPages) {
+    window.clearTimeout(timer);
     await pdf.destroy();
     throw new ImportError(`This PDF has more than ${LIMITS.pdfPages} pages, which is too long for a script.`);
   }
@@ -115,6 +124,11 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
   const paragraphs: string[] = [];
   let chars = 0;
   for (let n = 1; n <= pdf.numPages; n++) {
+    if (Date.now() >= deadline) {
+      window.clearTimeout(timer);
+      await pdf.destroy();
+      throw tooSlow;
+    }
     const page = await pdf.getPage(n);
     const content = await page.getTextContent();
     // Text items have `str`; marked-content items don't.
@@ -147,10 +161,12 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
     flush();
     page.cleanup();
     if (chars > LIMITS.textChars) {
+      window.clearTimeout(timer);
       await pdf.destroy();
       throw new ImportError("That file has too much text for a script (over 2 MB).");
     }
   }
+  window.clearTimeout(timer);
   await pdf.destroy();
   return paragraphs.join("\n\n");
 }
