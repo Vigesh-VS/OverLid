@@ -132,6 +132,18 @@ export function GeneralTab() {
           onChange={(v) => update(section("peeks", { sound: v }))}
         />
       </Group>
+
+      <Group
+        title="Troubleshooting"
+        note="Logs stay on this PC (up to 4 files of 1 MB). Anything that looks like a token is masked before it's written."
+      >
+        <Toggle
+          label="Detailed logging"
+          hint="Only turn on when chasing a bug."
+          checked={general.debugLogging}
+          onChange={(v) => update(section("general", { debugLogging: v }))}
+        />
+      </Group>
     </>
   );
 }

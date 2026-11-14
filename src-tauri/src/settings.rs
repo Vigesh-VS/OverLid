@@ -87,6 +87,8 @@ pub struct General {
     pub clipboard_history: bool,
     /// The first-run welcome screen has been shown.
     pub welcome_seen: bool,
+    /// Write debug-level lines to the log (still redacted). Off by default.
+    pub debug_logging: bool,
 }
 
 impl Default for General {
@@ -105,6 +107,7 @@ impl Default for General {
             extended_pill: false,
             clipboard_history: true,
             welcome_seen: false,
+            debug_logging: false,
         }
     }
 }
@@ -500,4 +503,19 @@ pub fn settings_get(app: AppHandle) -> Settings {
 #[tauri::command]
 pub fn settings_set(app: AppHandle, settings: Settings) -> Settings {
     replace(&app, settings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Settings are a plain JSON file on disk: no field may hold a credential.
+    #[test]
+    fn settings_have_no_secret_fields() {
+        let json = serde_json::to_string(&Settings::default()).unwrap_or_default();
+        let lower = json.to_ascii_lowercase();
+        for bad in ["token", "secret", "password", "apikey", "api_key", "credential", "bearer"] {
+            assert!(!lower.contains(&format!("{bad}\"")), "settings field looks secret: {bad}");
+        }
+    }
 }

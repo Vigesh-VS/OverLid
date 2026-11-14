@@ -71,12 +71,12 @@ impl UsageProvider for ClaudeProvider {
 
     fn fetch(&self) -> BoxFuture<'_, Result<UsageSnapshot, ProviderError>> {
         Box::pin(async move {
-            let client = super::http().ok_or_else(|| ProviderError::Network("http client unavailable".into()))?;
+            let request = super::request(USAGE_URL)?;
+            // Read at the moment of the request; wiped when this scope ends.
             let token = read_token()?;
 
-            let response = client
-                .get(USAGE_URL)
-                .bearer_auth(token)
+            let response = request
+                .bearer_auth(token.expose())
                 .header("anthropic-beta", BETA_HEADER)
                 .header(reqwest::header::ACCEPT, "application/json")
                 .send()
@@ -124,12 +124,12 @@ fn capitalise(s: &str) -> String {
 
 fn read_oauth() -> Result<Value, ProviderError> {
     let path = credentials_path().ok_or(ProviderError::NeedsAuth)?;
-    let raw = std::fs::read_to_string(&path).map_err(|_| ProviderError::NeedsAuth)?;
-    let json: Value = serde_json::from_str(&raw).map_err(|_| ProviderError::NeedsAuth)?;
+    let raw = super::read_secret_file(&path)?;
+    let json: Value = serde_json::from_str(raw.expose()).map_err(|_| ProviderError::NeedsAuth)?;
     json.get("claudeAiOauth").cloned().ok_or(ProviderError::NeedsAuth)
 }
 
-fn read_token() -> Result<String, ProviderError> {
+fn read_token() -> Result<crate::secret::Secret, ProviderError> {
     let oauth = read_oauth()?;
     let token = oauth
         .get("accessToken")
@@ -144,7 +144,7 @@ fn read_token() -> Result<String, ProviderError> {
     {
         return Err(ProviderError::NeedsAuth);
     }
-    Ok(token.to_owned())
+    Ok(crate::secret::Secret::new(token.to_owned()))
 }
 
 /// Defensive parse: unknown or null fields are skipped, never fatal.

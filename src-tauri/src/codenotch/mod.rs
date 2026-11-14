@@ -75,19 +75,16 @@ fn provider(id: &str) -> Option<Arc<dyn UsageProvider>> {
     providers().iter().find(|p| p.id() == id).cloned()
 }
 
-/// Shared HTTP client for provider fetches.
-pub fn http() -> Option<&'static reqwest::Client> {
-    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            reqwest::Client::builder()
-                .timeout(Duration::from_secs(15))
-                .user_agent(concat!("overlid/", env!("CARGO_PKG_VERSION")))
-                .build()
-                .map_err(|e| log::error!("http client init failed: {e}"))
-                .ok()
-        })
-        .as_ref()
+/// An allowlisted GET request (see `crate::net`), as a provider error.
+pub fn request(url: &str) -> Result<reqwest::RequestBuilder, ProviderError> {
+    crate::net::get(url).map_err(|e| ProviderError::Network(e.to_string()))
+}
+
+/// Read a credential file into a wiped-on-drop buffer.
+pub fn read_secret_file(path: &std::path::Path) -> Result<crate::secret::Secret, ProviderError> {
+    std::fs::read_to_string(path)
+        .map(crate::secret::Secret::new)
+        .map_err(|_| ProviderError::NeedsAuth)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -118,7 +115,7 @@ pub struct UsageSnapshot {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
-    #[error("not signed in")]
+    #[error("auth failed: sign in again")]
     NeedsAuth,
     #[error("rate limited")]
     RateLimited { retry_after: Option<Duration> },
@@ -395,7 +392,7 @@ async fn poll_loop(app: AppHandle, provider: Arc<dyn UsageProvider>) {
                 log::warn!("{id} usage fetch failed: {e}");
                 update(&app, id, |s| {
                     s.state = UsageState::Error;
-                    s.message = Some(e.to_string());
+                    s.message = Some(crate::redact::redact(&e.to_string()));
                     s.last_attempt_at = Some(now);
                 });
             }
@@ -504,4 +501,34 @@ pub fn parse_time(value: &serde_json::Value) -> Option<DateTime<Utc>> {
         .ok()
         .and_then(|d| d.and_hms_opt(0, 0, 0))
         .map(|dt| dt.and_utc())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Nothing the island receives over IPC may carry a token, even when an
+    /// error message from a provider happens to contain one.
+    #[test]
+    fn ipc_payloads_hold_no_tokens() {
+        let leaked = ProviderError::Network("Bearer sk-ant-oat01-AAAAAAAAAAAAAAAAAAAA rejected".into());
+        let status = ProviderStatus {
+            provider_id: "claude".into(),
+            display_name: "Claude Code".into(),
+            state: UsageState::Error,
+            snapshot: None,
+            message: Some(crate::redact::redact(&leaked.to_string())),
+            last_attempt_at: None,
+        };
+        let json = serde_json::to_string(&status).unwrap_or_default();
+        for word in json.split(|c: char| c == '"' || c.is_whitespace()) {
+            assert!(!crate::redact::looks_secret(word), "token-like string in IPC payload: {json}");
+        }
+        assert!(!json.contains("AAAAAAAAAAAA"));
+    }
+
+    #[test]
+    fn errors_are_short_and_secret_free() {
+        assert_eq!(ProviderError::NeedsAuth.to_string(), "auth failed: sign in again");
+    }
 }

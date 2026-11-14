@@ -24,7 +24,7 @@ impl CodexProvider {
 }
 
 struct Auth {
-    token: String,
+    token: crate::secret::Secret,
     account_id: Option<String>,
 }
 
@@ -37,15 +37,15 @@ fn auth_path() -> Option<PathBuf> {
 
 fn read_auth() -> Result<Auth, ProviderError> {
     let path = auth_path().ok_or(ProviderError::NeedsAuth)?;
-    let raw = std::fs::read_to_string(path).map_err(|_| ProviderError::NeedsAuth)?;
-    let json: Value = serde_json::from_str(&raw).map_err(|_| ProviderError::NeedsAuth)?;
+    let raw = super::read_secret_file(&path)?;
+    let json: Value = serde_json::from_str(raw.expose()).map_err(|_| ProviderError::NeedsAuth)?;
     let tokens = json.get("tokens").ok_or(ProviderError::NeedsAuth)?;
     let token = tokens
         .get("access_token")
         .and_then(Value::as_str)
         .filter(|t| !t.is_empty())
-        .ok_or(ProviderError::NeedsAuth)?
-        .to_owned();
+        .ok_or(ProviderError::NeedsAuth)
+        .map(|t| crate::secret::Secret::new(t.to_owned()))?;
     let account_id = tokens
         .get("account_id")
         .and_then(Value::as_str)
@@ -96,11 +96,10 @@ impl UsageProvider for CodexProvider {
 
     fn fetch(&self) -> BoxFuture<'_, Result<UsageSnapshot, ProviderError>> {
         Box::pin(async move {
-            let client = super::http().ok_or_else(|| ProviderError::Network("http client unavailable".into()))?;
+            let request = super::request(USAGE_URL)?;
             let auth = read_auth()?;
-            let mut request = client
-                .get(USAGE_URL)
-                .bearer_auth(&auth.token)
+            let mut request = request
+                .bearer_auth(auth.token.expose())
                 .header(reqwest::header::ACCEPT, "application/json")
                 .header("OAI-Product-Sku", "codex");
             if let Some(id) = &auth.account_id {

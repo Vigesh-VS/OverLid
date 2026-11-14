@@ -27,7 +27,7 @@ impl CopilotProvider {
 }
 
 /// The token from `gh auth token`. Kept in memory for one request only.
-fn gh_token() -> Result<String, ProviderError> {
+fn gh_token() -> Result<crate::secret::Secret, ProviderError> {
     let output = Command::new("gh")
         .args(["auth", "token", "--hostname", "github.com"])
         .creation_flags(CREATE_NO_WINDOW)
@@ -36,12 +36,12 @@ fn gh_token() -> Result<String, ProviderError> {
     if !output.status.success() {
         return Err(ProviderError::NeedsAuth);
     }
-    let token = String::from_utf8(output.stdout).map_err(|_| ProviderError::NeedsAuth)?;
-    let token = token.trim();
+    let raw = crate::secret::Secret::new(String::from_utf8(output.stdout).map_err(|_| ProviderError::NeedsAuth)?);
+    let token = raw.expose().trim();
     if token.is_empty() {
         return Err(ProviderError::NeedsAuth);
     }
-    Ok(token.to_owned())
+    Ok(crate::secret::Secret::new(token.to_owned()))
 }
 
 impl UsageProvider for CopilotProvider {
@@ -73,13 +73,16 @@ impl UsageProvider for CopilotProvider {
 
     fn fetch(&self) -> BoxFuture<'_, Result<UsageSnapshot, ProviderError>> {
         Box::pin(async move {
-            let client = super::http().ok_or_else(|| ProviderError::Network("http client unavailable".into()))?;
+            let request = super::request(USER_URL)?;
             let token = tauri::async_runtime::spawn_blocking(gh_token)
                 .await
                 .map_err(|e| ProviderError::Network(e.to_string()))??;
-            let response = client
-                .get(USER_URL)
-                .header(reqwest::header::AUTHORIZATION, format!("token {token}"))
+            let mut auth = reqwest::header::HeaderValue::from_str(&format!("token {}", token.expose()))
+                .map_err(|_| ProviderError::NeedsAuth)?;
+            // Sensitive headers are never printed by reqwest's Debug output.
+            auth.set_sensitive(true);
+            let response = request
+                .header(reqwest::header::AUTHORIZATION, auth)
                 .header(reqwest::header::ACCEPT, "application/json")
                 .send()
                 .await

@@ -59,6 +59,8 @@ export interface Settings {
     /** Keep a clipboard history in memory for the Home panel. */
     clipboardHistory: boolean;
     welcomeSeen: boolean;
+    /** Write debug-level (still redacted) lines to the log. */
+    debugLogging: boolean;
   };
   peeks: {
     lockKeys: boolean;

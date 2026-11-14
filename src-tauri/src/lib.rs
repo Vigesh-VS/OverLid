@@ -5,9 +5,12 @@ mod codenotch;
 mod foreground;
 mod fullscreen;
 mod media;
+mod net;
 mod peek;
 mod pomodoro;
 mod quick_action;
+mod redact;
+mod secret;
 mod settings;
 mod system;
 mod teleprompter;
@@ -42,13 +45,36 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
     if old.code.port != new.code.port {
         codenotch::hook_server::restart(app);
     }
+    if old.general.debug_logging != new.general.debug_logging {
+        apply_log_level(new.general.debug_logging);
+    }
     if old.prompter.shortcuts != new.prompter.shortcuts {
         teleprompter::rebind(app);
     }
 }
 
+/// Info by default; debug only when the user turns it on in Settings.
+fn apply_log_level(debug: bool) {
+    log::set_max_level(if debug { log::LevelFilter::Debug } else { log::LevelFilter::Info });
+}
+
+/// Crash messages go to the log, redacted, instead of a raw dump.
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let place = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_owned())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_default();
+        log::error!("panic at {place}: {}", redact::redact(&message));
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_panic_hook();
     let result = tauri::Builder::default()
         // Must be first: a second launch just opens Settings in the running app.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -56,7 +82,23 @@ pub fn run() {
         }))
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
+                // Debug records are kept so the Settings toggle can turn them on;
+                // the effective level is set by `apply_log_level`.
+                .level(log::LevelFilter::Debug)
+                .level_for("reqwest", log::LevelFilter::Warn)
+                .level_for("hyper_util", log::LevelFilter::Warn)
+                .max_file_size(1_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(4))
+                // Every line is redacted before it's written anywhere.
+                .format(|out, message, record| {
+                    out.finish(format_args!(
+                        "[{}][{}][{}] {}",
+                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        record.level(),
+                        record.target(),
+                        redact::redact(&message.to_string())
+                    ))
+                })
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -136,6 +178,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             settings::init(handle);
+            apply_log_level(settings::current(handle).general.debug_logging);
             // Start every module (and register its state) before the island
             // is shown, so the page never asks for state that isn't there yet.
             media::start(handle);
