@@ -3,9 +3,16 @@
 //! Always backs the file up first, merges instead of overwriting, keeps every
 //! other key and hook untouched, and tags our entries (via the URL) so
 //! re-installing never duplicates and "Disconnect" removes only ours.
+//!
+//! Only `%USERPROFILE%\.claude\settings.json` is ever touched (not
+//! `CLAUDE_CONFIG_DIR`), never through a symlink or junction, and every
+//! write goes to a temp file that's flushed, re-read and validated before
+//! it replaces the original.
 
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write;
+use std::os::windows::fs::MetadataExt;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, bail};
 use serde::Serialize;
@@ -47,10 +54,23 @@ pub struct ChangeReport {
 }
 
 fn settings_path() -> Option<PathBuf> {
-    if let Some(dir) = std::env::var_os("CLAUDE_CONFIG_DIR") {
-        return Some(PathBuf::from(dir).join("settings.json"));
-    }
     dirs::home_dir().map(|h| h.join(".claude").join("settings.json"))
+}
+
+const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+
+/// A symlink, junction or other reparse point. Missing paths are not links.
+fn is_link(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .is_ok_and(|m| m.file_type().is_symlink() || m.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
+}
+
+/// Refuse to read or write through a link at the file or its folder.
+fn ensure_plain(path: &Path) -> anyhow::Result<()> {
+    if is_link(path) || path.parent().is_some_and(is_link) {
+        bail!("{} is a link (symlink or junction), so Overlid won't edit it", path.display());
+    }
+    Ok(())
 }
 
 fn hook_url(port: u16) -> String {
@@ -87,8 +107,14 @@ fn port_of(hook: &Value) -> Option<u16> {
 
 fn read_settings() -> anyhow::Result<(PathBuf, Option<Value>)> {
     let path = settings_path().context("can't find your home folder")?;
-    match fs::read_to_string(&path) {
-        Ok(raw) if raw.trim().is_empty() => Ok((path, Some(Value::Object(Map::new())))),
+    let value = read_at(&path)?;
+    Ok((path, value))
+}
+
+fn read_at(path: &Path) -> anyhow::Result<Option<Value>> {
+    ensure_plain(path)?;
+    match fs::read_to_string(path) {
+        Ok(raw) if raw.trim().is_empty() => Ok(Some(Value::Object(Map::new()))),
         Ok(raw) => {
             let value: Value = serde_json::from_str(&raw).with_context(|| {
                 format!("{} isn't valid JSON, so it was left untouched", path.display())
@@ -96,9 +122,9 @@ fn read_settings() -> anyhow::Result<(PathBuf, Option<Value>)> {
             if !value.is_object() {
                 bail!("{} isn't a JSON object, so it was left untouched", path.display());
             }
-            Ok((path, Some(value)))
+            Ok(Some(value))
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((path, None)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e).with_context(|| format!("reading {}", path.display())),
     }
 }
@@ -202,7 +228,7 @@ fn strip(root: &mut Value) {
     }
 }
 
-fn backup(path: &PathBuf) -> anyhow::Result<Option<String>> {
+fn backup(path: &Path) -> anyhow::Result<Option<String>> {
     if !path.exists() {
         return Ok(None);
     }
@@ -212,16 +238,38 @@ fn backup(path: &PathBuf) -> anyhow::Result<Option<String>> {
     Ok(Some(target.display().to_string()))
 }
 
-fn write(path: &PathBuf, value: &Value) -> anyhow::Result<()> {
+/// Write atomically: temp file in the same folder, flush to disk, re-read
+/// and check it, then rename over the original. On any failure the original
+/// is left as it was.
+fn write(path: &Path, value: &Value) -> anyhow::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
+    ensure_plain(path)?;
     let mut text = serde_json::to_string_pretty(value)?;
     text.push('\n');
     let tmp = path.with_extension("json.overlid-tmp");
-    fs::write(&tmp, text).with_context(|| format!("writing {}", tmp.display()))?;
-    fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))?;
-    Ok(())
+    let _ = fs::remove_file(&tmp);
+    let result = (|| -> anyhow::Result<()> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)
+            .with_context(|| format!("creating {}", tmp.display()))?;
+        file.write_all(text.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        let check: Value = serde_json::from_str(&fs::read_to_string(&tmp)?).context("the new settings didn't re-read")?;
+        if &check != value {
+            bail!("the new settings didn't match what was written");
+        }
+        fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result
 }
 
 pub fn install(port: u16, token: &Secret) -> anyhow::Result<ChangeReport> {
@@ -283,6 +331,20 @@ pub fn uninstall(listening_port: Option<u16>) -> anyhow::Result<ChangeReport> {
     })
 }
 
+/// Command-line flag the NSIS uninstaller passes.
+pub const REMOVE_HOOKS_ARG: &str = "--remove-hooks";
+
+/// Remove our hooks (keeping backups) and the hook token. Exit code 0 on
+/// success or when there was nothing to remove.
+pub fn remove_for_uninstall() -> i32 {
+    let code = match uninstall(None) {
+        Ok(_) => 0,
+        Err(_) => 1,
+    };
+    super::hook_token::delete();
+    code
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -341,6 +403,64 @@ mod tests {
         let hook = hook_entry(47823, "abc");
         assert!(is_ours(&hook));
         assert_eq!(token_of(&hook), Some("abc"));
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("overlid-test-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn writes_atomically_and_keeps_user_keys() {
+        let dir = temp_dir("write");
+        let path = dir.join("settings.json");
+        fs::write(&path, "{\"model\":\"opus\"}").unwrap();
+        let mut root = read_at(&path).unwrap().unwrap();
+        add_ours(&mut json!({ "hooks": {} }), 1);
+        root["hooks"] = json!({});
+        add_ours(&mut root, 47823);
+        write(&path, &root).unwrap();
+        let back = read_at(&path).unwrap().unwrap();
+        assert_eq!(back["model"], "opus");
+        assert_eq!(scan(&back).0, EVENTS.len());
+        assert!(!path.with_extension("json.overlid-tmp").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn invalid_json_is_left_untouched() {
+        let dir = temp_dir("invalid");
+        let path = dir.join("settings.json");
+        fs::write(&path, "{ not json").unwrap();
+        assert!(read_at(&path).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{ not json");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refuses_junctions() {
+        let dir = temp_dir("junction");
+        let real = dir.join("real");
+        let link = dir.join("link");
+        fs::create_dir_all(&real).unwrap();
+        fs::write(real.join("settings.json"), "{}").unwrap();
+        // Junctions don't need admin rights, unlike symlinks.
+        let made = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(&real)
+            .output()
+            .is_ok_and(|o| o.status.success());
+        if made {
+            let target = link.join("settings.json");
+            assert!(read_at(&target).is_err());
+            assert!(write(&target, &json!({})).is_err());
+            assert_eq!(fs::read_to_string(real.join("settings.json")).unwrap(), "{}");
+        }
+        let _ = fs::remove_dir(&link);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

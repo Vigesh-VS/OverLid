@@ -75,6 +75,11 @@ fn install_panic_hook() {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     install_panic_hook();
+    // The uninstaller runs `overlid.exe --remove-hooks` to take Overlid's
+    // hooks out of Claude Code's settings. Nothing else starts.
+    if std::env::args().any(|a| a == codenotch::hook_installer::REMOVE_HOOKS_ARG) {
+        std::process::exit(codenotch::hook_installer::remove_for_uninstall());
+    }
     let result = tauri::Builder::default()
         // Must be first: a second launch just opens Settings in the running app.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
