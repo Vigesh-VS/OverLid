@@ -96,6 +96,19 @@ pub fn list(app: &AppHandle) -> anyhow::Result<Vec<Script>> {
 }
 
 /// Create the welcome script the first time the scripts folder is empty.
+/// Delete every script (Settings › Privacy › Clear all data). The sample
+/// script isn't re-added.
+pub fn clear_all(app: &AppHandle) -> anyhow::Result<()> {
+    for entry in fs::read_dir(dir(app)?)?.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|x| x == "json" || x == "tmp") {
+            fs::remove_file(&path)?;
+        }
+    }
+    notify(app);
+    Ok(())
+}
+
 pub fn seed(app: &AppHandle) {
     let result = (|| -> anyhow::Result<()> {
         let marker = dir(app)?.join(".seeded");

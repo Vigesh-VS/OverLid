@@ -396,6 +396,8 @@ export const commands = {
   openLink: (kind: "repo" | "star" | "bug" | "feature" | "discussions" | "releases" | "sponsor" | "author") =>
     invoke<void>("open_link", { kind }),
   appVersion: () => invoke<string>("app_version"),
+  /** Delete settings, scripts, focus history, logs and the hook token. */
+  privacyClearAll: (disconnectHooks: boolean) => invoke<void>("privacy_clear_all", { disconnectHooks }),
   ambientWallpaper: () => invoke<string | null>("ambient_wallpaper"),
   pickExe: () => invoke<string | null>("pick_exe"),
   pickFolder: () => invoke<string | null>("pick_folder"),

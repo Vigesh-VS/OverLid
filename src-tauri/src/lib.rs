@@ -8,6 +8,7 @@ mod media;
 mod net;
 mod peek;
 mod pomodoro;
+mod privacy;
 mod quick_action;
 mod redact;
 mod secret;
@@ -132,6 +133,7 @@ pub fn run() {
             app_windows::pick_exe,
             app_windows::pick_folder,
             app_windows::app_version,
+            privacy::privacy_clear_all,
             settings::settings_get,
             settings::settings_set,
             media::media_get,

@@ -19,6 +19,7 @@ fn main() {
         "pick_exe",
         "pick_folder",
         "app_version",
+        "privacy_clear_all",
         "settings_get",
         "settings_set",
         "media_get",

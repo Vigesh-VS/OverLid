@@ -318,6 +318,17 @@ fn emit(app: &AppHandle, inner: &Inner, cfg: &Config) {
     }
 }
 
+/// Forget all focus history (Settings › Privacy › Clear all data).
+pub fn clear_history(app: &AppHandle) {
+    if let Some(pomo) = app.try_state::<Pomodoro>()
+        && let Ok(mut inner) = pomo.0.lock()
+    {
+        inner.history.clear();
+        save_history(app, &inner.history);
+        emit(app, &inner, &config(app));
+    }
+}
+
 fn save_history(app: &AppHandle, history: &BTreeMap<String, DayStats>) {
     let result = app.store(STORE_FILE).map_err(anyhow::Error::from).and_then(|store| {
         store.set(HISTORY_KEY, serde_json::to_value(history)?);

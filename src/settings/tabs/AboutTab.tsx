@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { Logo } from "../../components/Logo";
 import { commands, run } from "../../lib/ipc";
-import { Group, Row } from "../controls";
+import { Group, Row, Toggle } from "../controls";
 import styles from "../Settings.module.css";
 
 type LinkKind = Parameters<typeof commands.openLink>[0];
@@ -34,6 +34,18 @@ const PRIVACY = [
   { title: "Keyboard", text: "Caps Lock and Num Lock are read with GetKeyState. There is no keyboard hook." },
 ];
 
+/** Everything Overlid keeps on this PC. Nothing else is stored anywhere. */
+const STORED = [
+  { title: "Settings", text: "Your choices, in settings.json in Overlid's app data folder." },
+  { title: "Scripts", text: "Teleprompter scripts, one file each in the scripts folder." },
+  { title: "Focus history", text: "How many focus rounds and minutes you did each day (pomodoro.json)." },
+  { title: "Logs", text: "Up to 4 files of 1 MB for troubleshooting. Anything that looks like a token is masked." },
+  {
+    title: "Hook token",
+    text: "A random key in Windows Credential Manager that proves hook events came from your Claude Code. Live session names and folders are kept in memory only.",
+  },
+];
+
 /** A plain, readable row of text inside a settings group. */
 function TextRow({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
@@ -43,6 +55,54 @@ function TextRow({ title, children }: { title: string; children?: React.ReactNod
         {children && <span className={styles.rowHint}>{children}</span>}
       </div>
     </div>
+  );
+}
+
+/** "Clear all Overlid data", behind an explicit second step. */
+function ClearData() {
+  const [confirming, setConfirming] = useState(false);
+  const [disconnect, setDisconnect] = useState(true);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const clear = () => {
+    setStatus("Clearing…");
+    commands.privacyClearAll(disconnect).then(
+      () => {
+        setStatus("All Overlid data was cleared.");
+        setConfirming(false);
+      },
+      (e: unknown) => setStatus(String(e)),
+    );
+  };
+
+  if (!confirming) {
+    return (
+      <Row label="Clear all Overlid data" hint={status ?? "Settings, scripts, focus history, logs and the hook token."}>
+        <button type="button" className={styles.dangerButton} onClick={() => setConfirming(true)}>
+          Clear…
+        </button>
+      </Row>
+    );
+  }
+  return (
+    <>
+      <Toggle
+        label="Also disconnect Claude Code live sessions"
+        hint="Removes Overlid's hooks from Claude Code's settings. Its backups are kept."
+        checked={disconnect}
+        onChange={setDisconnect}
+      />
+      <Row label="This can't be undone" hint="Scripts are deleted for good. Export any you want to keep first.">
+        <div className={styles.tryRow}>
+          <button type="button" className={styles.button} onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+          <button type="button" className={styles.dangerButton} onClick={clear}>
+            Clear everything
+          </button>
+        </div>
+      </Row>
+    </>
   );
 }
 
@@ -104,6 +164,15 @@ export function AboutTab() {
             {p.text}
           </TextRow>
         ))}
+      </Group>
+
+      <Group title="Stored on this PC" note="Nothing is uploaded. This is the full list.">
+        {STORED.map((p) => (
+          <TextRow key={p.title} title={p.title}>
+            {p.text}
+          </TextRow>
+        ))}
+        <ClearData />
       </Group>
 
       <Group title="Licence">
