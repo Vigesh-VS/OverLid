@@ -1,0 +1,16 @@
+# gitleaks config: the default rules, plus an allowlist for the fake tokens
+# used by Overlid's redaction and hook-server tests. Nothing else is exempt.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake test tokens"
+regexes = [
+  '''gho_16C7e42F292c6912E7710c838347Ae178B4a''',
+  '''ghp_0123456789abcdefABCDEF0123456789''',
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.SflKxwRJSMeKKF2QT4fwpM''',
+  '''sk-ant-(oat01-|very-secret)A*''',
+  '''ya29\.a0AfH6SMBx+''',
+  '''(0123456789abcdef){4}''',
+]

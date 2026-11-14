@@ -25,3 +25,11 @@ dist-ssr
 
 # Local installer builds
 /release/
+
+# Secrets: never commit these
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12

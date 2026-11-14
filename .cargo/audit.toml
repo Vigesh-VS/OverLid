@@ -1,0 +1,14 @@
+# cargo-audit config (run from the repo root: cargo audit --file src-tauri/Cargo.lock).
+#
+# These advisories are all in Linux-only GTK / D-Bus crates that Tauri pulls
+# in for other platforms. None of them are in the Windows build: check with
+#   cargo tree --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc -i <crate>
+# Re-check whenever Tauri is updated.
+[advisories]
+ignore = [
+  "RUSTSEC-2024-0370", # proc-macro-error unmaintained (via glib-macros, Linux only)
+  "RUSTSEC-2024-0429", # glib VariantStrIter unsound (Linux only)
+  "RUSTSEC-2026-0370", # zvariant unmaintained (zbus, Linux only)
+  "RUSTSEC-2026-0371", # zbus_names unmaintained (Linux only)
+  "RUSTSEC-2026-0372", # zvariant_derive unmaintained (Linux only)
+]
