@@ -3,6 +3,7 @@
 import { commands, inTauri, on } from "../lib/ipc";
 import { useAmbientColor } from "../components/AmbientLayer";
 import { chime } from "../lib/sound";
+import { useClipboard } from "./clipboard";
 import { useCode } from "./code";
 import { useIsland } from "./island";
 import { useMedia } from "./media";
@@ -64,6 +65,8 @@ export function startBridge(): void {
     voiceLevel.level = v.level;
     voiceLevel.at = performance.now();
   });
+  void on("clipboard://changed", (items) => useClipboard.getState().setItems(items));
+  commands.clipboardList().then((items) => useClipboard.getState().setItems(items), ignore);
   void on("voice://status", (status) => usePrompter.getState().setVoiceStatus(status));
   void on("ambient://color", (hex) => useAmbientColor.getState().set(hex));
 

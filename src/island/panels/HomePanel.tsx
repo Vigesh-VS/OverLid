@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { PauseIcon, PlayIcon, ResetIcon, SkipIcon } from "../../components/icons";
 import { Ring } from "../../components/Ring";
@@ -7,6 +7,7 @@ import { formatCountdown } from "../../lib/format";
 import { commands, run } from "../../lib/ipc";
 import { LEVEL_COLOR, leadSession, useCode, usageLevel } from "../../stores/code";
 import { useIsland } from "../../stores/island";
+import { thumbUrl, useClipboard } from "../../stores/clipboard";
 import { useMedia } from "../../stores/media";
 import { PHASE_LABEL, usePomoView } from "../../stores/pomodoro";
 import { useSystem } from "../../stores/system";
@@ -19,7 +20,7 @@ export function HomePanel() {
       <MediaTile />
       <FocusTile />
       <CodeTile />
-      <SystemTile />
+      <ClipboardTile />
     </div>
   );
 }
@@ -155,30 +156,74 @@ function CodeTile() {
   );
 }
 
-function SystemTile() {
-  const tick = useSystem((s) => s.tick);
-  const battery = tick?.battery;
+function ClipboardTile() {
+  const items = useClipboard((s) => s.items);
+  const enabled = useSystem((s) => s.settings?.general.clipboardHistory ?? true);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const copy = (id: number) => {
+    commands.clipboardCopy(id).then(
+      () => {
+        setCopied(id);
+        window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1200);
+      },
+      (e: unknown) => console.error("clipboard_copy failed", e),
+    );
+  };
+
   return (
-    <Tile title="System" panel="stats">
-      {tick && tick.memTotal > 0 ? (
-        <div className={styles.stats}>
-          <div>
-            <span className={styles.big}>{Math.round(tick.cpuPercent)}%</span>
-            <span className={styles.muted}>CPU</span>
-          </div>
-          <div>
-            <span className={styles.big}>{Math.round((tick.memUsed / tick.memTotal) * 100)}%</span>
-            <span className={styles.muted}>Memory</span>
-          </div>
-          <div>
-            <span className={battery?.onAc ? `${styles.big} ${styles.good}` : styles.big}>
-              {battery ? `${battery.percent}%` : "AC"}
-            </span>
-            <span className={styles.muted}>{battery ? "Battery" : "Power"}</span>
-          </div>
-        </div>
+    <Tile
+      title="Clipboard"
+      panel="home"
+      aside={
+        items.length > 0 && (
+          <button type="button" className={styles.clear} onClick={() => run(commands.clipboardClear(), "clipboard_clear")}>
+            Clear
+          </button>
+        )
+      }
+    >
+      {!enabled ? (
+        <span className={styles.muted}>Clipboard history is off in Settings › General.</span>
+      ) : items.length === 0 ? (
+        <span className={styles.muted}>Copy text or an image and it shows up here.</span>
       ) : (
-        <span className={styles.muted}>Reading stats…</span>
+        <div className={styles.clipList} role="list" aria-label="Clipboard history">
+          {items.map((item) => {
+            const thumb = item.kind === "image" ? thumbUrl(item) : null;
+            return (
+              <div key={item.id} className={styles.clipRow} role="listitem">
+                <button
+                  type="button"
+                  className={styles.clipItem}
+                  title={item.kind === "text" ? "Click to copy" : `Image ${item.width}×${item.height}. Click to copy`}
+                  onClick={() => copy(item.id)}
+                >
+                  {thumb ? (
+                    <img className={styles.clipThumb} src={thumb} alt="" draggable={false} />
+                  ) : (
+                    <span className={styles.clipText}>{item.text}</span>
+                  )}
+                  {item.kind === "image" && (
+                    <span className={styles.clipMeta}>
+                      {item.width}×{item.height}
+                    </span>
+                  )}
+                  {copied === item.id && <span className={styles.copied}>Copied</span>}
+                </button>
+                <button
+                  type="button"
+                  className={styles.clipRemove}
+                  aria-label="Remove from history"
+                  title="Remove"
+                  onClick={() => run(commands.clipboardRemove(item.id), "clipboard_remove")}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </Tile>
   );

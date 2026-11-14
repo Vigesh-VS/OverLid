@@ -1,5 +1,6 @@
 mod ambient;
 mod app_windows;
+mod clipboard;
 mod codenotch;
 mod foreground;
 mod fullscreen;
@@ -22,6 +23,9 @@ pub(crate) fn on_settings_changed(app: &AppHandle, old: &settings::Settings, new
     if o.position != n.position || o.offset_x != n.offset_x || o.ui_scale != n.ui_scale {
         window::reposition(app);
         window::refresh_attention_dot(app);
+    }
+    if o.clipboard_history && !n.clipboard_history {
+        clipboard::clear(app);
     }
     if o.visibility != n.visibility || o.selected_apps != n.selected_apps {
         foreground::apply(app);
@@ -67,6 +71,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             window::set_hit_rect,
             peek::peek_test,
+            clipboard::clipboard_list,
+            clipboard::clipboard_copy,
+            clipboard::clipboard_remove,
+            clipboard::clipboard_clear,
             window::island_set_extent,
             window::island_flags,
             app_windows::open_settings_window,
@@ -136,6 +144,7 @@ pub fn run() {
             foreground::start(handle);
             ambient::start(handle);
             pomodoro::start(handle);
+            clipboard::start(handle);
             codenotch::sessions::start(handle);
             codenotch::hook_server::start(handle);
             codenotch::start(handle);

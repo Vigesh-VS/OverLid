@@ -70,6 +70,18 @@ export function GeneralTab() {
         />
       </Group>
 
+      <Group
+        title="Clipboard"
+        note="The Home tab keeps your last 30 copied texts and images so you can copy them again. Kept in memory only: never saved to disk, cleared when Overlid quits. Passwords copied from password managers are skipped."
+      >
+        <Toggle
+          label="Keep clipboard history"
+          hint="Turning it off also clears the history."
+          checked={general.clipboardHistory}
+          onChange={(v) => update(section("general", { clipboardHistory: v }))}
+        />
+      </Group>
+
       <Group title="Peeks" note="Short pop-outs from the notch when something happens. Each type can be turned off.">
         <Toggle
           label="Caps Lock and Num Lock"

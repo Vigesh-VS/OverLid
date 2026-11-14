@@ -198,3 +198,115 @@
   outline: 2px solid var(--ol-text);
   outline-offset: 2px;
 }
+
+/* Clipboard tile: scrolls inside its own slot. */
+.clipList {
+  max-height: 96px;
+  overflow-y: auto;
+  margin: 0 calc(-1 * var(--ol-space-2));
+  padding: 0 var(--ol-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ol-track) transparent;
+}
+
+.clipRow {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.clipItem {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ol-space-3);
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ol-surface-raised);
+  text-align: left;
+}
+
+.clipItem:hover {
+  background: var(--ol-track);
+}
+
+.clipItem:focus-visible,
+.clipRemove:focus-visible,
+.clear:focus-visible {
+  outline: 2px solid var(--ol-text);
+  outline-offset: 1px;
+}
+
+.clipText {
+  min-width: 0;
+  font-size: var(--ol-fs-sm);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.clipThumb {
+  max-height: 40px;
+  max-width: 96px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.clipMeta {
+  color: var(--ol-text-3);
+  font-size: var(--ol-fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.copied {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--ol-green);
+  font-size: var(--ol-fs-xs);
+  font-weight: 600;
+}
+
+.clipRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ol-black);
+  color: var(--ol-text-2);
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.clipRow:hover .clipRemove,
+.clipRemove:focus-visible {
+  opacity: 1;
+}
+
+.clear {
+  padding: 0 8px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ol-surface-raised);
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+  font-weight: 600;
+}
+
+.clear:hover {
+  color: var(--ol-text);
+}

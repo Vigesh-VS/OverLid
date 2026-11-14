@@ -66,6 +66,7 @@ export function AboutTab() {
             only to that provider's usage endpoint.
           </li>
           <li>Microphone audio is measured for loudness in memory and never recorded or sent.</li>
+          <li>Clipboard history stays in memory, is never saved or sent, and skips content password managers mark as private.</li>
           <li>Live screen colour (teleprompter background) is sampled in memory only and never saved or sent.</li>
           <li>Caps Lock and Num Lock are read with GetKeyState. There is no keyboard hook.</li>
         </ul>

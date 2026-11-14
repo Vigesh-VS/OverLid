@@ -83,6 +83,8 @@ pub struct General {
     pub indicators: Indicators,
     /// Extended pill: AI tool + usage on the left, quick action on the right.
     pub extended_pill: bool,
+    /// Keep a clipboard history (memory only) for the Home panel.
+    pub clipboard_history: bool,
     /// The first-run welcome screen has been shown.
     pub welcome_seen: bool,
 }
@@ -101,6 +103,7 @@ impl Default for General {
             close_delay_ms: 400,
             indicators: Indicators::default(),
             extended_pill: false,
+            clipboard_history: true,
             welcome_seen: false,
         }
     }

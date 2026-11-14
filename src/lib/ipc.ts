@@ -56,6 +56,8 @@ export interface Settings {
     indicators: { media: boolean; focus: boolean; usage: boolean; quickAction: boolean };
     /** AI tool + usage left, quick action right (when nothing is playing). */
     extendedPill: boolean;
+    /** Keep a clipboard history in memory for the Home panel. */
+    clipboardHistory: boolean;
     welcomeSeen: boolean;
   };
   peeks: {
@@ -124,6 +126,19 @@ export interface AppIcon {
   height: number;
   /** Base64 RGBA, top-down. */
   rgba: string;
+}
+
+export interface ClipItem {
+  id: number;
+  kind: "text" | "image";
+  text: string | null;
+  width: number | null;
+  height: number | null;
+  /** Base64 RGBA thumbnail (top-down). */
+  thumb: string | null;
+  thumbWidth: number | null;
+  thumbHeight: number | null;
+  copiedAt: string;
 }
 
 export interface InstalledApp {
@@ -364,6 +379,10 @@ export const commands = {
   /** Room the island content needs (logical px); the window grows to fit. 0,0 = default. */
   islandSetExtent: (width: number, height: number) => invoke<void>("island_set_extent", { width, height }),
   islandFlags: () => invoke<IslandFlags>("island_flags"),
+  clipboardList: () => invoke<ClipItem[]>("clipboard_list"),
+  clipboardCopy: (id: number) => invoke<void>("clipboard_copy", { id }),
+  clipboardRemove: (id: number) => invoke<void>("clipboard_remove", { id }),
+  clipboardClear: () => invoke<void>("clipboard_clear"),
   peekTest: (kind: "agentDone" | "agentWaiting" | "charging" | "usage" | "capsLock") => invoke<void>("peek_test", { kind }),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
 
@@ -454,6 +473,7 @@ export interface EventPayloads {
   "prompter://start": string;
   "voice://level": VoiceLevel;
   "voice://status": VoiceStatus;
+  "clipboard://changed": ClipItem[];
   /** Live screen colour while presenting (hex). */
   "ambient://color": string;
 }
