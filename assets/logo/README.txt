@@ -12,7 +12,7 @@ app/
   Transparent micro glyphs, square app tiles, Tauri-style PNG sizes, icon.ico.
 
 Recommended:
-- Website/header: source/overlid-metallic.svg or website/overlid-metallic-2048.png
+- Website/header: source/overlid-metallic.svg or website/overlid-metallic-1024.png
 - Light background: source/overlid-black.svg
 - Dark background: source/overlid-white.svg
 - Browser favicon: website/favicon.ico
