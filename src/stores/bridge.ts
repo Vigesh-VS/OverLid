@@ -76,7 +76,7 @@ export function startBridge(): void {
   commands.codeSessions().then((s) => useCode.getState().setSessions(s), ignore);
   commands.codeHookStatus().then((h) => useCode.getState().setHooks(h), ignore);
   loadScripts();
-  commands.pomoGet().then((p) => p && usePomodoro.getState().setState(p), ignore);
+  loadPomodoro();
 }
 
 function loadScripts(): void {
@@ -98,4 +98,18 @@ useCode.subscribe((state, prev) => {
 
 function loadProviders(): void {
   commands.codeProviders().then((p) => useCode.getState().setProviders(p), ignore);
+}
+
+/**
+ * The timer only broadcasts while running, so an idle timer must be read
+ * once. Retry until Rust has it ready rather than staying on "Starting…".
+ */
+function loadPomodoro(attempt = 0): void {
+  commands.pomoGet().then(
+    (p) => {
+      if (p) usePomodoro.getState().setState(p);
+      else if (attempt < 20) window.setTimeout(() => loadPomodoro(attempt + 1), 250);
+    },
+    () => attempt < 20 && window.setTimeout(() => loadPomodoro(attempt + 1), 250),
+  );
 }

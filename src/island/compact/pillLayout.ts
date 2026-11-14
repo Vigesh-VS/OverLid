@@ -15,8 +15,10 @@ export const SLOT_WIDTH: Record<Slot, number> = {
 };
 
 export const PILL = {
-  /** Room for "00:00" in 16 px bold tabular figures. */
+  /** Room for "00:00" in 16 px semibold tabular figures (24-hour clock). */
   timeWidth: 46,
+  /** Room for "00:00 am" (12-hour clock). */
+  timeWidth12h: 72,
   /** Space between the time and the slots, and between slots. */
   gap: 10,
   padding: 14,
@@ -67,9 +69,14 @@ function sideWidth(slots: Slot[]): number {
   return slots.reduce((w, s) => w + SLOT_WIDTH[s], 0) + PILL.gap * (slots.length - 1);
 }
 
+/** Width reserved for the clock, depending on the system's 12/24-hour format. */
+export function clockWidth(twelveHour: boolean): number {
+  return twelveHour ? PILL.timeWidth12h : PILL.timeWidth;
+}
+
 /** Pill width: the time plus twice the wider side, so the time stays centred. */
-export function pillWidth(slots: PillSlots): number {
+export function pillWidth(slots: PillSlots, timeWidth: number = PILL.timeWidth): number {
   const side = Math.max(sideWidth(slots.left), sideWidth(slots.right));
-  const width = PILL.timeWidth + 2 * PILL.padding + (side > 0 ? 2 * (side + PILL.gap) : 0);
+  const width = timeWidth + 2 * PILL.padding + (side > 0 ? 2 * (side + PILL.gap) : 0);
   return Math.max(PILL.minWidth, width);
 }

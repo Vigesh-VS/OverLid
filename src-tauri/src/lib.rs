@@ -126,12 +126,8 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             settings::init(handle);
-            if let Err(e) = window::setup(handle) {
-                log::error!("island window setup failed: {e:#}");
-            }
-            if let Err(e) = tray::setup(handle) {
-                log::error!("tray setup failed: {e:#}");
-            }
+            // Start every module (and register its state) before the island
+            // is shown, so the page never asks for state that isn't there yet.
             media::start(handle);
             system::start(handle);
             fullscreen::start(handle);
@@ -142,6 +138,12 @@ pub fn run() {
             codenotch::hook_server::start(handle);
             codenotch::start(handle);
             teleprompter::init(handle);
+            if let Err(e) = tray::setup(handle) {
+                log::error!("tray setup failed: {e:#}");
+            }
+            if let Err(e) = window::setup(handle) {
+                log::error!("island window setup failed: {e:#}");
+            }
             app_windows::on_launch(handle);
             Ok(())
         })

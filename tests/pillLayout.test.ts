@@ -47,3 +47,9 @@ test("growth is symmetric so the time stays centred", () => {
 test("the attention bell always shows, even over media", () => {
   assert.deepEqual(pillSlots({ ...idle, mediaPlaying: true, attention: true }).left, ["bell"]);
 });
+
+test("a 12-hour clock gets room for am/pm", () => {
+  const slots = pillSlots(idle);
+  assert.ok(pillWidth(slots, PILL.timeWidth12h) > pillWidth(slots, PILL.timeWidth));
+  assert.ok(pillWidth(slots, PILL.timeWidth12h) >= PILL.timeWidth12h + 2 * PILL.padding);
+});

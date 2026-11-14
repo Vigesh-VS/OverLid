@@ -12,7 +12,11 @@ import { useSystem } from "../../stores/system";
 import { AttentionBell } from "./AttentionBell";
 import { Clock } from "./Clock";
 import styles from "./CompactBar.module.css";
-import { PILL, SLOT_WIDTH, pillSlots, pillWidth, type PillSlots, type Slot } from "./pillLayout";
+import { PILL, SLOT_WIDTH, clockWidth, pillSlots, pillWidth, type PillSlots, type Slot } from "./pillLayout";
+
+/** True when the system clock is 12-hour ("9:14 am"). */
+const TWELVE_HOUR = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12 ?? false;
+const TIME_WIDTH = clockWidth(TWELVE_HOUR);
 import { QuickActionButton } from "./QuickActionButton";
 
 /** The AI tool the pill should represent: the one you're using, else the primary. */
@@ -44,7 +48,7 @@ export function usePill(): { slots: PillSlots; width: number } {
     quickAction: !!quick && quick.kind !== "none",
     focus: focusInPill && pomoActive(pomo),
   });
-  return { slots, width: pillWidth(slots) };
+  return { slots, width: pillWidth(slots, TIME_WIDTH) };
 }
 
 /**
@@ -124,8 +128,8 @@ export function CompactBar() {
       className={styles.side}
       style={
         align === "left"
-          ? { right: `calc(50% + ${PILL.timeWidth / 2 + PILL.gap}px)`, justifyContent: "flex-end" }
-          : { left: `calc(50% + ${PILL.timeWidth / 2 + PILL.gap}px)` }
+          ? { right: `calc(50% + ${TIME_WIDTH / 2 + PILL.gap}px)`, justifyContent: "flex-end" }
+          : { left: `calc(50% + ${TIME_WIDTH / 2 + PILL.gap}px)` }
       }
     >
       {list.map((slot) => (
