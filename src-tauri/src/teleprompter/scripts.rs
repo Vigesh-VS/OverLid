@@ -47,6 +47,10 @@ fn dir(app: &AppHandle) -> anyhow::Result<PathBuf> {
     Ok(dir)
 }
 
+/// Longest title and body a script may have.
+pub const MAX_TITLE: usize = 200;
+pub const MAX_BODY: usize = 2 * 1024 * 1024;
+
 fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.len() <= 64 && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
@@ -133,13 +137,21 @@ pub fn scripts_list(app: AppHandle) -> Result<Vec<Script>, String> {
 
 #[tauri::command]
 pub fn script_create(app: AppHandle, title: Option<String>) -> Result<Script, String> {
-    let script = create(&app, title.unwrap_or_else(|| "Untitled script".into()), String::new()).map_err(err)?;
+    let title = title.map(|t| t.chars().take(MAX_TITLE).collect()).unwrap_or_else(|| "Untitled script".into());
+    let script = create(&app, title, String::new()).map_err(err)?;
     notify(&app);
     Ok(script)
 }
 
 #[tauri::command]
 pub fn script_save(app: AppHandle, mut script: Script) -> Result<Script, String> {
+    if !valid_id(&script.id) {
+        return Err("invalid script id".into());
+    }
+    if script.body.len() > MAX_BODY {
+        return Err("This script is too long (over 2 MB of text).".into());
+    }
+    script.title = script.title.chars().filter(|c| !c.is_control()).take(MAX_TITLE).collect();
     script.updated_at = Utc::now();
     if script.title.trim().is_empty() {
         script.title = "Untitled script".into();

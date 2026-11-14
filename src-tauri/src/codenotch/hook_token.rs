@@ -86,7 +86,7 @@ pub fn get_or_create() -> anyhow::Result<Secret> {
 pub fn rotate() -> anyhow::Result<Secret> {
     let token = random_hex()?;
     write(&token)?;
-    log::info!("hook token created");
+    log::info!("created a new hook token");
     Ok(token)
 }
 

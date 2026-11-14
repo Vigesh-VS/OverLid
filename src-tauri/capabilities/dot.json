@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "dot",
+  "description": "The small attention dot shown while the island is hidden.",
+  "windows": [
+    "dot"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-code-dismiss",
+    "allow-code-open-folder",
+    "allow-code-sessions"
+  ]
+}

@@ -30,8 +30,10 @@
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
       }
     ],
+    "withGlobalTauri": false,
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+      "devCsp": "default-src 'self'; script-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost ws://localhost:1420; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
     }
   },
   "bundle": {

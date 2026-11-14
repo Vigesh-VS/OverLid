@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/check-unsafe-dom.mjs && tsc && vite build",
+    "check:dom": "node scripts/check-unsafe-dom.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "node --experimental-strip-types --no-warnings --test tests/"

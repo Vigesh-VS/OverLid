@@ -132,6 +132,10 @@ pub fn force_stop(app: &AppHandle) {
 /// Start presenting a script from any window (e.g. after importing in Settings).
 #[tauri::command]
 pub fn prompter_start(app: AppHandle, script_id: String) {
+    if script_id.len() > 64 || !script_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        log::warn!("prompter_start: invalid script id refused");
+        return;
+    }
     if let Err(e) = app.emit(crate::quick_action::PROMPTER_START_EVENT, script_id) {
         log::warn!("couldn't start the prompter: {e}");
     }

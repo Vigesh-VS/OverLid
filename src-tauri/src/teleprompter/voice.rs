@@ -226,6 +226,12 @@ fn run(app: &AppHandle, owner: &str, device: Option<&str>, stop: &mpsc::Receiver
 
 #[tauri::command]
 pub fn voice_start(app: AppHandle, state: tauri::State<'_, Voice>, owner: String, device: Option<String>) {
+    // Only the two known listeners, and a sane device name.
+    if !matches!(owner.as_str(), "prompter" | "settings") {
+        log::warn!("voice_start: unknown owner refused");
+        return;
+    }
+    let device = device.filter(|d| d.chars().count() <= 256 && !d.chars().any(char::is_control));
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
     if let Ok(mut streams) = state.0.lock()
         && let Some(old) = streams.insert(owner.clone(), stop_tx)

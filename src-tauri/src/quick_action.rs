@@ -89,6 +89,14 @@ pub struct AppIcon {
 /// The large (32 px) icon embedded in an .exe, as RGBA pixels.
 #[tauri::command]
 pub async fn app_icon(path: String) -> Result<AppIcon, String> {
+    // Icons come only from a local .exe that exists. Network paths are
+    // refused: reading one could send this PC's sign-in to a remote server.
+    let local = crate::codenotch::sessions::is_local_path(&path)
+        && path.to_ascii_lowercase().ends_with(".exe")
+        && std::path::Path::new(&path).is_file();
+    if !local {
+        return Err("not a local program".into());
+    }
     extract_icon(&path).map_err(|e| {
         log::debug!("icon extraction failed for {path}: {e:#}");
         format!("{e:#}")
