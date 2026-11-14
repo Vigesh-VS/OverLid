@@ -2,10 +2,10 @@
 // the pill's width comes only from which slots are visible right now, so it
 // can never get stuck wide. Tested in tests/pillLayout.test.ts.
 
-export type Slot = "art" | "bars" | "usage" | "quick" | "focus" | "bell";
+export type Slot = "art" | "bars" | "usage" | "quick" | "focus" | "bell" | "notify";
 
 /** Fixed slot widths (px at 100 % scale). Each slot renders at exactly this width. */
-export const SLOT_WIDTH: Record<Slot, number> = {
+export const SLOT_WIDTH: Record<Exclude<Slot, "notify">, number> = {
   art: 20,
   bars: 16,
   usage: 52,
@@ -25,6 +25,12 @@ export const PILL = {
   minWidth: 96,
 };
 
+/** Width of a notification slot: icon + gap + its short label. */
+export function notifyWidth(label: string): number {
+  // ~6.6 px per character at 12 px semibold, plus an 18 px icon and 6 px gap.
+  return Math.ceil(18 + 6 + label.length * 6.6);
+}
+
 export interface PillInputs {
   mediaPlaying: boolean;
   /** A Claude Code session needs you (persistent bell). */
@@ -37,36 +43,46 @@ export interface PillInputs {
   quickAction: boolean;
   /** "Show focus countdown in pill" is on and a timer is active. */
   focus: boolean;
+  /** A notification is showing: its slot width, or 0 for none. */
+  notify: number;
 }
 
 export interface PillSlots {
   left: Slot[];
   right: Slot[];
+  /** Width of the "notify" slot, when present. */
+  notifyWidth: number;
 }
 
 /**
- * Default: just the time. Media playing: art · time · bars, nothing else.
- * Extended (and no media): usage · time · quick action. The attention bell
- * always takes the left slot, because it must be impossible to miss.
+ * Default: just the time. Media playing: art · time · bars. Extended (no
+ * media): usage · time · quick action. Notifications and the "needs you"
+ * bell always appear on the far right, like a Dynamic Island: the pill
+ * widens and the icon pops in there.
  */
 export function pillSlots(i: PillInputs): PillSlots {
   let left: Slot[] = [];
-  let right: Slot[] = [];
+  const right: Slot[] = [];
   if (i.mediaPlaying) {
     left = ["art"];
-    right = ["bars"];
+    right.push("bars");
   } else {
     if (i.extended && i.usage) left = ["usage"];
     if (i.focus) right.push("focus");
     if (i.extended && i.quickAction) right.push("quick");
   }
-  if (i.attention) left = ["bell"];
-  return { left, right };
+  if (i.attention) right.push("bell");
+  if (i.notify > 0) right.push("notify");
+  return { left, right, notifyWidth: i.notify };
 }
 
-function sideWidth(slots: Slot[]): number {
-  if (slots.length === 0) return 0;
-  return slots.reduce((w, s) => w + SLOT_WIDTH[s], 0) + PILL.gap * (slots.length - 1);
+export function slotWidth(slot: Slot, slots: PillSlots): number {
+  return slot === "notify" ? slots.notifyWidth : SLOT_WIDTH[slot];
+}
+
+function sideWidth(list: Slot[], slots: PillSlots): number {
+  if (list.length === 0) return 0;
+  return list.reduce((w, s) => w + slotWidth(s, slots), 0) + PILL.gap * (list.length - 1);
 }
 
 /** Width reserved for the clock, depending on the system's 12/24-hour format. */
@@ -76,7 +92,7 @@ export function clockWidth(twelveHour: boolean): number {
 
 /** Pill width: the time plus twice the wider side, so the time stays centred. */
 export function pillWidth(slots: PillSlots, timeWidth: number = PILL.timeWidth): number {
-  const side = Math.max(sideWidth(slots.left), sideWidth(slots.right));
+  const side = Math.max(sideWidth(slots.left, slots), sideWidth(slots.right, slots));
   const width = timeWidth + 2 * PILL.padding + (side > 0 ? 2 * (side + PILL.gap) : 0);
   return Math.max(PILL.minWidth, width);
 }

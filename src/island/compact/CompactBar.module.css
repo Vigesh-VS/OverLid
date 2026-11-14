@@ -132,3 +132,26 @@
     transform: scaleY(0.7);
   }
 }
+
+/* Island-style notification: icon + a few words, on the right of the time. */
+.notify {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.notifyIcon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notifyLabel {
+  font-size: var(--ol-fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

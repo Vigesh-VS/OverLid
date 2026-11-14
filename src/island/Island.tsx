@@ -7,9 +7,7 @@ import { usePrompter } from "../stores/prompter";
 import { useSystem } from "../stores/system";
 import { readIslandTokens, type Shape } from "../styles/tokens";
 import { CompactBar, usePill } from "./compact/CompactBar";
-import { LockToast } from "./compact/LockToast";
 import { ExpandedShell } from "./panels/ExpandedShell";
-import { PeekView } from "./peek/PeekView";
 import { Countdown, PrompterView } from "./prompter/PrompterView";
 import styles from "./Island.module.css";
 
@@ -66,7 +64,7 @@ export function Island() {
   const { width: pillWidth } = usePill();
   const pill: Shape = { ...tokens.pill, width: pillWidth, height: pillHeight, radius: pillHeight / 2 };
 
-  let view: "compact" | "lock" | "peek" | "expanded" | "countdown" | "prompter" = "compact";
+  let view: "compact" | "expanded" | "countdown" | "prompter" = "compact";
   let shape: Shape = pill;
   let content: ReactNode = <CompactBar />;
   let key = "compact";
@@ -96,18 +94,9 @@ export function Island() {
     };
     content = <ExpandedShell width={shape.width} />;
     key = "expanded";
-  } else if (peek && isLockKey(peek.kind)) {
-    // Lock keys stay inside the pill: it just widens to fit the message.
-    view = "lock";
-    shape = { ...pill, width: Math.max(pill.width, tokens.lock.width) };
-    content = <LockToast peek={peek} />;
-    key = `lock-${peek.kind}-${peek.badge ?? ""}`;
-  } else if (peek) {
-    view = "peek";
-    shape = peek.subtitle ? tokens.peek.tall : tokens.peek.short;
-    content = <PeekView peek={peek} />;
-    key = `peek-${peek.kind}-${peek.title}-${peek.badge ?? ""}`;
   }
+  // Notifications (peeks) stay in the compact pill: it widens and the icon
+  // pops in on the right of the time (see CompactBar / pillLayout).
 
   const spring: Transition = reduceMotion
     ? { duration: 0 }

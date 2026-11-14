@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { ProviderMark } from "../../components/ProviderIcon";
 import { Ring } from "../../components/Ring";
@@ -11,13 +12,14 @@ import { pomoActive, usePomoView } from "../../stores/pomodoro";
 import { useSystem } from "../../stores/system";
 import { AttentionBell } from "./AttentionBell";
 import { Clock } from "./Clock";
+import { QuickActionButton } from "./QuickActionButton";
 import styles from "./CompactBar.module.css";
-import { PILL, SLOT_WIDTH, clockWidth, pillSlots, pillWidth, type PillSlots, type Slot } from "./pillLayout";
+import { toNotification } from "./notification";
+import { PILL, clockWidth, notifyWidth, pillSlots, pillWidth, slotWidth, type PillSlots, type Slot } from "./pillLayout";
 
 /** True when the system clock is 12-hour ("9:14 am"). */
 const TWELVE_HOUR = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12 ?? false;
 const TIME_WIDTH = clockWidth(TWELVE_HOUR);
-import { QuickActionButton } from "./QuickActionButton";
 
 /** The AI tool the pill should represent: the one you're using, else the primary. */
 function activeTool(usage: ProviderStatus[], claudeActive: boolean): { status: ProviderStatus; window: UsageWindow } | null {
@@ -37,6 +39,8 @@ export function usePill(): { slots: PillSlots; width: number } {
   const focusInPill = useSystem((s) => s.settings?.focus.showInPill ?? false);
   const quick = useSystem((s) => s.settings?.quickAction);
   const { state: pomo } = usePomoView();
+  const peek = useIsland((s) => s.peek);
+  const notification = peek ? toNotification(peek) : null;
 
   const lead = leadSession(sessions);
   const claudeActive = lead?.status === "busy" || lead?.status === "waiting";
@@ -47,6 +51,7 @@ export function usePill(): { slots: PillSlots; width: number } {
     usage: !!activeTool(usage, claudeActive),
     quickAction: !!quick && quick.kind !== "none",
     focus: focusInPill && pomoActive(pomo),
+    notify: notification ? notifyWidth(notification.label) : 0,
   });
   return { slots, width: pillWidth(slots, TIME_WIDTH) };
 }
@@ -67,6 +72,9 @@ export function CompactBar() {
   const { state: pomo, remainingMs, progress } = usePomoView();
   const setOverIndicator = useIsland((s) => s.setOverIndicator);
   const setSuppressExpand = useIsland((s) => s.setSuppressExpand);
+  const peek = useIsland((s) => s.peek);
+  const notification = peek ? toNotification(peek) : null;
+  const reduceMotion = useReducedMotion();
 
   function clickIndicator(e: MouseEvent) {
     e.stopPropagation();
@@ -120,8 +128,28 @@ export function CompactBar() {
         );
       case "quick":
         return quick && <QuickActionButton action={quick} onPress={clickIndicator} />;
+      case "notify":
+        return (
+          notification && (
+            <span className={styles.notify} role="status" aria-live="polite" title={notification.title} style={{ color: notification.color }}>
+              <span className={styles.notifyIcon}>{notification.icon}</span>
+              <span className={styles.notifyLabel}>{notification.label}</span>
+            </span>
+          )
+        );
     }
   };
+
+  // The pill widens first (spring); the new icon pops in once there's room.
+  const pop = reduceMotion
+    ? { initial: false as const, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : {
+        initial: { opacity: 0, scale: 0.4 },
+        animate: { opacity: 1, scale: 1, transition: { delay: 0.14, type: "spring" as const, stiffness: 520, damping: 26 } },
+        exit: { opacity: 0, scale: 0.6, transition: { duration: 0.1 } },
+      };
+  // A new notification re-pops even if one was already showing.
+  const keyFor = (slot: Slot) => (slot === "notify" && peek ? `notify-${peek.kind}-${peek.title}-${peek.badge ?? ""}` : slot);
 
   const side = (list: Slot[], align: "left" | "right") => (
     <div
@@ -132,11 +160,13 @@ export function CompactBar() {
           : { left: `calc(50% + ${TIME_WIDTH / 2 + PILL.gap}px)` }
       }
     >
-      {list.map((slot) => (
-        <span key={slot} className={styles.slot} style={{ width: SLOT_WIDTH[slot] }}>
-          {render(slot)}
-        </span>
-      ))}
+      <AnimatePresence initial={false} mode="popLayout">
+        {list.map((slot) => (
+          <motion.span key={keyFor(slot)} className={styles.slot} style={{ width: slotWidth(slot, slots) }} {...pop}>
+            {render(slot)}
+          </motion.span>
+        ))}
+      </AnimatePresence>
     </div>
   );
 
@@ -146,9 +176,9 @@ export function CompactBar() {
       style={{ "--accent": accent } as CSSProperties}
       onPointerOver={(e) => setOverIndicator(!!(e.target as HTMLElement).closest("[data-indicator]"))}
     >
-      {slots.left.length > 0 && side(slots.left, "left")}
+      {side(slots.left, "left")}
       <Clock className={styles.clock} />
-      {slots.right.length > 0 && side(slots.right, "right")}
+      {side(slots.right, "right")}
     </div>
   );
 }
