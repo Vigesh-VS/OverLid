@@ -29,7 +29,7 @@ anyhow = "1"
 thiserror = "2"
 log = "0.4"
 sysinfo = { version = "0.37", default-features = false, features = ["system", "disk"] }
-cpal = "0.16"
+cpal = "0.18"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["time", "sync"] }
