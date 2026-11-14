@@ -73,7 +73,7 @@ export function readIslandTokens(): IslandTokens {
       radius: peekRadius - 2,
       ear: peekEar,
     },
-    prompterChrome: readNumber("--ol-prompter-chrome", 100),
+    prompterChrome: readNumber("--ol-prompter-chrome", 66),
     spring: {
       stiffness: readNumber("--ol-spring-stiffness", 400),
       damping: readNumber("--ol-spring-damping", 30),

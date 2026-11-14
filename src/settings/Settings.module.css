@@ -770,3 +770,21 @@
   justify-content: flex-end;
   gap: 6px;
 }
+
+.aboutText {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aboutHero .byline {
+  margin-top: 6px;
+  color: var(--ol-text);
+  font-size: var(--ol-fs-md);
+}
+
+.byline strong {
+  font-weight: 600;
+}

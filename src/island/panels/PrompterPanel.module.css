@@ -145,8 +145,26 @@
   line-height: 1.4;
 }
 
-.privacy {
+.before {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exposed {
+  color: var(--ol-amber);
+  font-size: var(--ol-fs-xs);
+  line-height: 1.4;
+}
+
+.pace {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.privacy {
   color: var(--ol-green);
   font-size: var(--ol-fs-xs);
 }

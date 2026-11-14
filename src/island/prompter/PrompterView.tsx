@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 
 import { AmbientLayer, useAmbientColors } from "../../components/AmbientLayer";
-import { LockIcon, MicIcon, PauseIcon, PlayIcon } from "../../components/icons";
+import { MicIcon, PauseIcon, PlayIcon } from "../../components/icons";
 import { commands, run } from "../../lib/ipc";
 import { leadSession, useCode } from "../../stores/code";
 import { useIsland } from "../../stores/island";
@@ -67,7 +67,6 @@ export function PrompterView() {
   const switchToAutoScroll = usePrompter((s) => s.switchToAutoScroll);
   const hovered = useIsland((s) => s.hovered);
   const prefs = useSystem((s) => s.settings?.prompter);
-  const capture = useSystem((s) => s.settings?.general.hideFromCapture ?? "prompterOnly");
   const waiting = useCode((s) => leadSession(s.sessions)?.status === "waiting");
 
   const blocks = useMemo(() => parseScript(script?.body ?? ""), [script]);
@@ -319,14 +318,8 @@ export function PrompterView() {
     apply();
   };
 
-  const effectivePxs = (() => {
-    const mode = prefs?.timingMode ?? "speed";
-    if (mode === "lines") return (((prefs?.linesPerMinute ?? 30) * size * lineHeight) / 60) * rate;
-    if (mode === "duration") return null;
-    return (prefs?.speed ?? 60) * rate;
-  })();
 
-  const protectedNow = capture !== "never";
+
   const color = prefs?.color ?? "#FFFFFF";
   const ambientColors = useAmbientColors(prefs?.ambient, true);
   const t = tops();
@@ -342,41 +335,10 @@ export function PrompterView() {
   };
   void layoutVersion;
 
-  const statusText = ended
-    ? "End of script"
-    : voiceBroken
-      ? "Voice paused"
-      : hardPaused
-        ? "Paused"
-        : hovered
-          ? "Paused while hovering"
-          : voiceWanted && voiceState !== "listening"
-            ? "Starting mic…"
-            : null;
 
   return (
     <div className={styles.prompter} style={{ width: width + 40 }}>
       {prefs?.ambient && <AmbientLayer settings={prefs.ambient} colors={ambientColors} textColor={color} />}
-
-      {/* Toolbar layer: always above the text and always clickable. */}
-      <div className={styles.header}>
-        <span className={protectedNow ? styles.protected : styles.exposed}>
-          <LockIcon size={12} />
-          {protectedNow ? "Hidden from screen share" : "Visible in screen share"}
-        </span>
-        <span className={styles.meta}>
-          {waiting && <span className={styles.waitDot} role="img" aria-label="An agent needs you" />}
-          {voiceWanted && (
-            <span className={styles.micOn} title="Microphone in use for voice mode. Never recorded." aria-label="Microphone on">
-              <MicIcon size={12} color={voiceBroken ? "var(--ol-amber)" : "var(--ol-red)"} />
-            </span>
-          )}
-          {statusText && <span>{statusText} ·</span>}
-          {effectivePxs === null ? `${prefs?.durationMin ?? 5} min run` : `${Math.round(effectivePxs)} px/s`}
-          {" · "}
-          {size} px
-        </span>
-      </div>
 
       <div
         ref={viewportRef}
@@ -477,6 +439,12 @@ export function PrompterView() {
             </button>
           ))}
         </div>
+        {waiting && <span className={styles.waitDot} role="img" aria-label="An agent needs you" title="An agent needs you" />}
+        {voiceWanted && (
+          <span className={styles.micOn} title="Microphone on for voice mode. Never recorded." aria-label="Microphone on">
+            <MicIcon size={13} color={voiceBroken ? "var(--ol-amber)" : "var(--ol-red)"} />
+          </span>
+        )}
         <button type="button" className={`${styles.round} ${styles.stop}`} aria-label="Stop teleprompter" title="Stop (Esc)" onClick={stop}>
           ✕
         </button>

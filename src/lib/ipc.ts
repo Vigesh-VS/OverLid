@@ -389,7 +389,7 @@ export const commands = {
   openSettings: () => invoke<void>("open_settings_window"),
   autostartGet: () => invoke<boolean>("autostart_get"),
   autostartSet: (enabled: boolean) => invoke<boolean>("autostart_set", { enabled }),
-  openLink: (kind: "repo" | "star" | "bug" | "feature" | "discussions" | "releases" | "sponsor") =>
+  openLink: (kind: "repo" | "star" | "bug" | "feature" | "discussions" | "releases" | "sponsor" | "author") =>
     invoke<void>("open_link", { kind }),
   appVersion: () => invoke<string>("app_version"),
   ambientWallpaper: () => invoke<string | null>("ambient_wallpaper"),

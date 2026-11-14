@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from "react";
 
 import { ImportPreview } from "../../components/ImportPreview";
 import { IMPORT_ACCEPT, ImportError, droppedFile, importFile, type ImportedScript } from "../../lib/importScript";
-import { commands, run } from "../../lib/ipc";
+import { commands, run, type Settings } from "../../lib/ipc";
 import { usePrompter } from "../../stores/prompter";
 import { useSystem } from "../../stores/system";
 import styles from "./PrompterPanel.module.css";
@@ -144,10 +144,28 @@ export function PrompterPanel() {
           </span>
         </label>
 
-        <span className={styles.privacy}>Hidden from screen share and recordings while presenting.</span>
+        <div className={styles.before}>
+          {settings?.general.hideFromCapture === "never" ? (
+            <span className={styles.exposed}>Visible in screen share. Change it in Settings › General.</span>
+          ) : (
+            <span className={styles.privacy}>Hidden from screen share and recordings while presenting.</span>
+          )}
+          <span className={styles.pace}>
+            {pace(settings)} · {settings?.prompter.fontSize ?? 28} px text · {settings?.prompter.width ?? 560} × {settings?.prompter.height ?? 200}
+          </span>
+        </div>
       </div>
     </div>
   );
+}
+
+function pace(settings: Settings | null): string {
+  const p = settings?.prompter;
+  if (!p) return "60 px/s";
+  if (p.voice) return "Voice mode";
+  if (p.timingMode === "lines") return `${Math.round(p.linesPerMinute)} lines/min`;
+  if (p.timingMode === "duration") return `Finish in ${p.durationMin} min`;
+  return `${Math.round(p.speed)} px/s`;
 }
 
 function preview(body: string): string {

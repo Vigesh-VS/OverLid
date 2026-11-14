@@ -10,6 +10,7 @@ pub const AUTOSTART_ARG: &str = "--autostart";
 /// The one place the project URL lives. All support goes through GitHub.
 pub const REPO_URL: &str = "https://github.com/Vigesh-VS/overlid";
 const SPONSOR_URL: &str = "https://github.com/sponsors/Vigesh-VS";
+const AUTHOR_URL: &str = "https://github.com/Vigesh-VS";
 
 /// Show the Settings window, creating it on first use.
 pub fn open_settings(app: &AppHandle) {
@@ -90,6 +91,7 @@ pub fn open_link(kind: String) -> Result<(), String> {
         "discussions" => format!("{REPO_URL}/discussions"),
         "releases" => format!("{REPO_URL}/releases"),
         "sponsor" => SPONSOR_URL.to_owned(),
+        "author" => AUTHOR_URL.to_owned(),
         other => return Err(format!("unknown link {other}")),
     };
     std::process::Command::new("explorer")
