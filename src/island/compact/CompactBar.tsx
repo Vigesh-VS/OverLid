@@ -1,10 +1,11 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
+import { KeyUpIcon } from "../../components/icons";
 import { ProviderMark } from "../../components/ProviderIcon";
 import { Ring } from "../../components/Ring";
 import { formatCountdown } from "../../lib/format";
-import { commands, run, type ProviderId, type ProviderStatus, type UsageWindow } from "../../lib/ipc";
+import { commands, run, type Peek, type ProviderId, type ProviderStatus, type UsageWindow } from "../../lib/ipc";
 import { LEVEL_COLOR, leadSession, useCode, usageLevel } from "../../stores/code";
 import { useIsland } from "../../stores/island";
 import { useMedia } from "../../stores/media";
@@ -15,11 +16,35 @@ import { Clock } from "./Clock";
 import { QuickActionButton } from "./QuickActionButton";
 import styles from "./CompactBar.module.css";
 import { toNotification } from "./notification";
-import { PILL, clockWidth, notifyWidth, pillSlots, pillWidth, slotWidth, type PillSlots, type Slot } from "./pillLayout";
+import {
+  PILL,
+  clockWidth,
+  lockWidth,
+  notifyWidth,
+  pillSlots,
+  pillWidth,
+  sideColumn,
+  slotWidth,
+  type PillSlots,
+  type Slot,
+} from "./pillLayout";
 
 /** True when the system clock is 12-hour ("9:14 am"). */
 const TWELVE_HOUR = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12 ?? false;
 const TIME_WIDTH = clockWidth(TWELVE_HOUR);
+
+/** Column gap from tokens.css (--ol-pill-slot-gap), so CSS and layout agree. */
+const GAP = (() => {
+  const v = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ol-pill-slot-gap"));
+  return Number.isFinite(v) ? v : PILL.gap;
+})();
+
+const isLockKey = (peek: Peek | null) => peek?.kind === "capsLock" || peek?.kind === "numLock";
+
+function lockLabel(peek: Peek): string {
+  const on = (peek.badge ?? "").toLowerCase() === "on";
+  return `${peek.kind === "capsLock" ? "Caps" : "Num"} ${on ? "on" : "off"}`;
+}
 
 /** The AI tool the pill should represent: the one you're using, else the primary. */
 function activeTool(usage: ProviderStatus[], claudeActive: boolean): { status: ProviderStatus; window: UsageWindow } | null {
@@ -29,8 +54,17 @@ function activeTool(usage: ProviderStatus[], claudeActive: boolean): { status: P
   return status && window ? { status, window } : null;
 }
 
+interface PillModel {
+  slots: PillSlots;
+  /** Width of each side column (equal on both sides). */
+  side: number;
+  /** Width of the centre column: the time, or a wider lock-key label. */
+  centre: number;
+  width: number;
+}
+
 /** What the collapsed pill shows right now. Shared by the island (width) and the bar (content). */
-export function usePill(): { slots: PillSlots; width: number } {
+export function usePill(): PillModel {
   const media = useMedia((s) => s.media);
   const usage = useCode((s) => s.usage);
   const sessions = useCode((s) => s.sessions);
@@ -40,7 +74,10 @@ export function usePill(): { slots: PillSlots; width: number } {
   const quick = useSystem((s) => s.settings?.quickAction);
   const { state: pomo } = usePomoView();
   const peek = useIsland((s) => s.peek);
-  const notification = peek ? toNotification(peek) : null;
+
+  // Lock keys use the centre column; other notifications sit on the right.
+  const lock = isLockKey(peek) && peek ? lockLabel(peek) : null;
+  const notification = peek && !lock ? toNotification(peek) : null;
 
   const lead = leadSession(sessions);
   const claudeActive = lead?.status === "busy" || lead?.status === "waiting";
@@ -53,15 +90,18 @@ export function usePill(): { slots: PillSlots; width: number } {
     focus: focusInPill && pomoActive(pomo),
     notify: notification ? notifyWidth(notification.label) : 0,
   });
-  return { slots, width: pillWidth(slots, TIME_WIDTH) };
+  // The pill only grows for a lock label if it's wider than the time.
+  const centre = Math.max(TIME_WIDTH, lock ? lockWidth(lock) : 0);
+  return { slots, side: sideColumn(slots, GAP), centre, width: pillWidth(slots, centre, GAP) };
 }
 
 /**
- * The collapsed pill: the bold time dead centre, optional slots either side.
- * Each slot is a fixed-width box, matching the widths the layout used.
+ * The collapsed pill as a 3-column grid: [left] [time] [right]. Both side
+ * columns are the same width and their items are centred in them, so the
+ * time is always exactly centred.
  */
 export function CompactBar() {
-  const { slots } = usePill();
+  const { slots, side, centre } = usePill();
   const media = useMedia((s) => s.media);
   const accent = useMedia((s) => s.accent);
   const usage = useCode((s) => s.usage);
@@ -73,7 +113,8 @@ export function CompactBar() {
   const setOverIndicator = useIsland((s) => s.setOverIndicator);
   const setSuppressExpand = useIsland((s) => s.setSuppressExpand);
   const peek = useIsland((s) => s.peek);
-  const notification = peek ? toNotification(peek) : null;
+  const lock = isLockKey(peek) && peek ? peek : null;
+  const notification = peek && !lock ? toNotification(peek) : null;
   const reduceMotion = useReducedMotion();
 
   function clickIndicator(e: MouseEvent) {
@@ -140,7 +181,7 @@ export function CompactBar() {
     }
   };
 
-  // The pill widens first (spring); the new icon pops in once there's room.
+  // The pill widens first (spring); new side items pop in once there's room.
   const pop = reduceMotion
     ? { initial: false as const, animate: { opacity: 1 }, exit: { opacity: 0 } }
     : {
@@ -148,17 +189,20 @@ export function CompactBar() {
         animate: { opacity: 1, scale: 1, transition: { delay: 0.14, type: "spring" as const, stiffness: 520, damping: 26 } },
         exit: { opacity: 0, scale: 0.6, transition: { duration: 0.1 } },
       };
+  const fade = { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.14 } }, exit: { opacity: 0, transition: { duration: 0.1 } } };
   // A new notification re-pops even if one was already showing.
   const keyFor = (slot: Slot) => (slot === "notify" && peek ? `notify-${peek.kind}-${peek.title}-${peek.badge ?? ""}` : slot);
 
-  const side = (list: Slot[], align: "left" | "right") => (
+  /** One side column: fixed width, items centred in it. */
+  const column = (list: Slot[], align: "left" | "right") => (
     <div
       className={styles.side}
-      style={
-        align === "left"
-          ? { right: `calc(50% + ${TIME_WIDTH / 2 + PILL.gap}px)`, justifyContent: "flex-end" }
-          : { left: `calc(50% + ${TIME_WIDTH / 2 + PILL.gap}px)` }
-      }
+      style={{
+        width: side,
+        ...(align === "left"
+          ? { right: `calc(50% + ${centre / 2 + GAP}px)` }
+          : { left: `calc(50% + ${centre / 2 + GAP}px)` }),
+      }}
     >
       <AnimatePresence initial={false} mode="popLayout">
         {list.map((slot) => (
@@ -176,9 +220,22 @@ export function CompactBar() {
       style={{ "--accent": accent } as CSSProperties}
       onPointerOver={(e) => setOverIndicator(!!(e.target as HTMLElement).closest("[data-indicator]"))}
     >
-      {side(slots.left, "left")}
-      <Clock className={styles.clock} />
-      {side(slots.right, "right")}
+      {side > 0 && column(slots.left, "left")}
+      <div className={styles.centre} style={{ width: centre }}>
+        <AnimatePresence initial={false} mode="popLayout">
+          {lock ? (
+            <motion.span key={`lock-${lock.kind}-${lock.badge ?? ""}`} className={styles.lock} role="status" aria-live="polite" {...fade}>
+              <KeyUpIcon size={13} />
+              {lockLabel(lock)}
+            </motion.span>
+          ) : (
+            <motion.span key="time" className={styles.timeWrap} {...fade}>
+              <Clock className={styles.clock} />
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+      {side > 0 && column(slots.right, "right")}
     </div>
   );
 }

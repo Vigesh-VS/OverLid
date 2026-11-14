@@ -1,6 +1,9 @@
-// Pure layout rules for the collapsed pill. The time is always dead centre;
-// the pill's width comes only from which slots are visible right now, so it
-// can never get stuck wide. Tested in tests/pillLayout.test.ts.
+// Pure layout rules for the collapsed pill: a 3-column grid
+//   [left slot] [centre: time] [right slot]
+// Both side columns are always the same width (the wider side's content), so
+// the centre is exactly centred, and each side's items are centred in their
+// column. The width comes only from what's visible now, so the pill can never
+// get stuck wide. Tested in tests/pillLayout.test.ts.
 
 export type Slot = "art" | "bars" | "usage" | "quick" | "focus" | "bell" | "notify";
 
@@ -19,13 +22,13 @@ export const PILL = {
   timeWidth: 46,
   /** Room for "00:00 am" (12-hour clock). */
   timeWidth12h: 72,
-  /** Space between the time and the slots, and between slots. */
-  gap: 10,
+  /** Gap between columns and between items in a column (--ol-pill-slot-gap). */
+  gap: 12,
   padding: 14,
   minWidth: 96,
 };
 
-/** Width of a notification slot: icon + gap + its short label. */
+/** Width of a notification: icon + gap + its short label. */
 export function notifyWidth(label: string): number {
   // ~6.6 px per character at 12 px semibold, plus an 18 px icon and 6 px gap.
   return Math.ceil(18 + 6 + label.length * 6.6);
@@ -43,7 +46,7 @@ export interface PillInputs {
   quickAction: boolean;
   /** "Show focus countdown in pill" is on and a timer is active. */
   focus: boolean;
-  /** A notification is showing: its slot width, or 0 for none. */
+  /** A side notification is showing: its width, or 0 for none. */
   notify: number;
 }
 
@@ -57,8 +60,7 @@ export interface PillSlots {
 /**
  * Default: just the time. Media playing: art · time · bars. Extended (no
  * media): usage · time · quick action. Notifications and the "needs you"
- * bell always appear on the far right, like a Dynamic Island: the pill
- * widens and the icon pops in there.
+ * bell appear on the right, like a Dynamic Island.
  */
 export function pillSlots(i: PillInputs): PillSlots {
   let left: Slot[] = [];
@@ -80,9 +82,14 @@ export function slotWidth(slot: Slot, slots: PillSlots): number {
   return slot === "notify" ? slots.notifyWidth : SLOT_WIDTH[slot];
 }
 
-function sideWidth(list: Slot[], slots: PillSlots): number {
+function groupWidth(list: Slot[], slots: PillSlots, gap: number): number {
   if (list.length === 0) return 0;
-  return list.reduce((w, s) => w + slotWidth(s, slots), 0) + PILL.gap * (list.length - 1);
+  return list.reduce((w, s) => w + slotWidth(s, slots), 0) + gap * (list.length - 1);
+}
+
+/** Width of each side column: both sides match the wider one. */
+export function sideColumn(slots: PillSlots, gap: number = PILL.gap): number {
+  return Math.max(groupWidth(slots.left, slots, gap), groupWidth(slots.right, slots, gap));
 }
 
 /** Width reserved for the clock, depending on the system's 12/24-hour format. */
@@ -90,9 +97,17 @@ export function clockWidth(twelveHour: boolean): number {
   return twelveHour ? PILL.timeWidth12h : PILL.timeWidth;
 }
 
-/** Pill width: the time plus twice the wider side, so the time stays centred. */
-export function pillWidth(slots: PillSlots, timeWidth: number = PILL.timeWidth): number {
-  const side = Math.max(sideWidth(slots.left, slots), sideWidth(slots.right, slots));
-  const width = timeWidth + 2 * PILL.padding + (side > 0 ? 2 * (side + PILL.gap) : 0);
+/** Width of a lock-key label ("Caps off") shown in the centre column. */
+export function lockWidth(label: string): number {
+  return Math.ceil(16 + 6 + label.length * 8.2);
+}
+
+/**
+ * Pill width = centre column + two equal side columns. `centre` is the
+ * time's width, or a wider lock-key label while one is showing.
+ */
+export function pillWidth(slots: PillSlots, centre: number = PILL.timeWidth, gap: number = PILL.gap): number {
+  const side = sideColumn(slots, gap);
+  const width = centre + 2 * PILL.padding + (side > 0 ? 2 * (side + gap) : 0);
   return Math.max(PILL.minWidth, width);
 }

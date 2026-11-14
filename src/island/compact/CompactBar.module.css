@@ -3,12 +3,27 @@
   inset: 0;
 }
 
-/* The time sits dead centre and never moves. */
-.clock {
+/* Centre column: dead centre, holds the time (or a lock-key indicator). */
+.centre {
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeWrap,
+.lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.clock {
   font-size: var(--ol-fs-pill-time);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -16,14 +31,22 @@
   white-space: nowrap;
 }
 
-/* Slot groups either side of the time; widths come from pillLayout.ts. */
+.lock {
+  gap: 5px;
+  font-size: var(--ol-fs-md);
+  font-weight: 600;
+}
+
+/* Side columns: both the same width; items centred in them.
+   Widths come from pillLayout.ts; the gap from --ol-pill-slot-gap. */
 .side {
   position: absolute;
   top: 0;
   bottom: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: var(--ol-pill-slot-gap);
   white-space: nowrap;
 }
 

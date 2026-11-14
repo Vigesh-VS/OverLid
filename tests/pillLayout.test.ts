@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { PILL, notifyWidth, pillSlots, pillWidth, type PillInputs } from "../src/island/compact/pillLayout.ts";
+import { PILL, lockWidth, notifyWidth, pillSlots, pillWidth, sideColumn, type PillInputs } from "../src/island/compact/pillLayout.ts";
 
 const idle: PillInputs = {
   mediaPlaying: false,
@@ -64,4 +64,27 @@ test("a 12-hour clock gets room for am/pm", () => {
   const slots = pillSlots(idle);
   assert.ok(pillWidth(slots, PILL.timeWidth12h) > pillWidth(slots, PILL.timeWidth));
   assert.ok(pillWidth(slots, PILL.timeWidth12h) >= PILL.timeWidth12h + 2 * PILL.padding);
+});
+
+test("3-column grid: both side columns equal the wider side", () => {
+  const slots = pillSlots({ ...idle, extended: true });
+  // usage (52) on the left, quick action (22) on the right: both columns are 52 wide.
+  assert.equal(sideColumn(slots), 52);
+  assert.equal(pillWidth(slots), PILL.timeWidth + 2 * PILL.padding + 2 * (52 + PILL.gap));
+});
+
+test("media pill keeps the slot gap on both sides of the time", () => {
+  const slots = pillSlots({ ...idle, mediaPlaying: true });
+  const w = pillWidth(slots);
+  const room = (w - PILL.timeWidth - 2 * PILL.padding) / 2;
+  assert.equal(room, sideColumn(slots) + PILL.gap);
+  assert.ok(PILL.gap >= 10 && PILL.gap <= 12);
+});
+
+test("a lock-key label only grows the pill when it's wider than the time", () => {
+  const slots = pillSlots(idle);
+  const narrow = 30;
+  assert.equal(pillWidth(slots, Math.max(PILL.timeWidth12h, narrow)), pillWidth(slots, PILL.timeWidth12h));
+  const wide = lockWidth("Caps off");
+  assert.ok(pillWidth(slots, Math.max(PILL.timeWidth, wide)) > pillWidth(slots, PILL.timeWidth));
 });

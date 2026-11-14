@@ -47,6 +47,11 @@
   --ol-pill-radius: 17px;
   --ol-pill-ear: 12px;
 
+  /* Collapsed pill: gap between its [left] [time] [right] columns. */
+  --ol-pill-slot-gap: 12px;
+  /* One content inset for anything inside a panel that isn't in a card. */
+  --ol-panel-inset: var(--ol-space-6);
+
   /* Lock-key toast: the pill widens in place for ~1 s */
   --ol-lock-w: 176px;
   --ol-lock-ms: 1000;
