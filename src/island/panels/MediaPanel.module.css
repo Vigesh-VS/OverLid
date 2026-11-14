@@ -1,7 +1,7 @@
 .panel {
   display: flex;
   gap: var(--ol-space-6);
-  padding: 0 var(--ol-space-1);
+  padding: 0;
 }
 
 .art {

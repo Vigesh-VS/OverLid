@@ -276,3 +276,14 @@
   outline: 2px solid var(--ol-text);
   outline-offset: 2px;
 }
+
+/* Loose rows (not inside a card) line up with the text inside the cards. */
+.panel > .heading,
+.switcher,
+.more {
+  padding-inline: var(--ol-panel-inset);
+}
+
+.more {
+  padding-bottom: var(--ol-space-1);
+}
