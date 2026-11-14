@@ -66,6 +66,7 @@ pub fn run() {
         .manage(window::HitState::default())
         .invoke_handler(tauri::generate_handler![
             window::set_hit_rect,
+            window::island_set_extent,
             window::island_flags,
             app_windows::open_settings_window,
             foreground::list_running_apps,

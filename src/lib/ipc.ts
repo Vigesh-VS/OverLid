@@ -361,6 +361,8 @@ export type PrompterAction =
 
 export const commands = {
   setHitRect: (rect: HitRect) => invoke<void>("set_hit_rect", { rect }),
+  /** Room the island content needs (logical px); the window grows to fit. 0,0 = default. */
+  islandSetExtent: (width: number, height: number) => invoke<void>("island_set_extent", { width, height }),
   islandFlags: () => invoke<IslandFlags>("island_flags"),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
 

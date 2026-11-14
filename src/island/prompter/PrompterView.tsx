@@ -19,7 +19,6 @@ const EYE_LINE = 0.3;
 /** Max paragraphs per rendered chunk. Every section also starts a chunk. */
 const CHUNK_BLOCKS = 12;
 
-export const AREA_LIMITS = { minW: 320, maxW: 760, minH: 120, maxH: 420 };
 
 interface Chunk {
   blocks: Block[];
@@ -90,9 +89,15 @@ export function PrompterView() {
   const heights = useRef<number[]>([]);
   const measured = useRef<boolean[]>([]);
   const [layoutVersion, setLayoutVersion] = useState(0);
+  // Which text is at the eye-line: chunk index + how far into it (0–1).
+  // Kept up to date while scrolling, and used to put the same text back on
+  // the reading line after a resize or text-size change reflows everything.
+  const anchor = useRef({ chunk: 0, frac: 0 });
+  const restoring = useRef(0);
   useMemo(() => {
     heights.current = chunks.map((c) => estimate(c, size, lineHeight, width));
     measured.current = chunks.map(() => false);
+    restoring.current = 6;
   }, [chunks, size, lineHeight, width]);
 
   /** Top of each chunk inside the content (after the eye-line padding). */
@@ -226,6 +231,13 @@ export function PrompterView() {
       }
 
       const tp = s.tops();
+      if (restoring.current === 0) {
+        const y = offset.current + tp[0];
+        let i = 0;
+        while (i < tp.length - 2 && tp[i + 1] <= y) i++;
+        const h = heights.current[i] || 1;
+        anchor.current = { chunk: i, frac: Math.min(1, Math.max(0, (y - tp[i]) / h)) };
+      }
       const r = visibleRange(tp, offset.current, s.height);
       const key = `${r[0]}:${r[1]}`;
       if (key !== lastRange) {
@@ -260,6 +272,16 @@ export function PrompterView() {
       }
       measured.current[i] = true;
     });
+    // After a reflow, keep the same text on the reading line.
+    if (restoring.current > 0) {
+      const t = tops();
+      const { chunk, frac } = anchor.current;
+      if (chunk < heights.current.length) {
+        offset.current = Math.max(0, t[chunk] + frac * heights.current[chunk] - t[0]);
+        apply();
+      }
+      restoring.current -= 1;
+    }
     if (changed) setLayoutVersion((v) => v + 1);
   });
 
@@ -465,14 +487,47 @@ export function PrompterView() {
   );
 }
 
-/** Drag the prompter's left, right and bottom edges to resize the text area. */
+/** Default prompter size, restored by double-clicking a handle. */
+export const DEFAULT_AREA = { width: 560, height: 200 };
+
+/**
+ * Size limits in island px: at least 280×80, at most 90 % of the screen's
+ * width and 60 % of its height (minus the prompter's own chrome).
+ */
+export function areaLimits(scale = 1) {
+  const sw = typeof window !== "undefined" ? window.screen.width : 1920;
+  const sh = typeof window !== "undefined" ? window.screen.height : 1080;
+  return {
+    minW: 280,
+    minH: 80,
+    maxW: Math.max(280, Math.floor((sw * 0.9) / scale) - 40),
+    maxH: Math.max(80, Math.floor((sh * 0.6) / scale) - 100),
+  };
+}
+
+type Edge = "left" | "right" | "bottom" | "bottomLeft" | "bottomRight";
+
+/**
+ * Resize the text area from the left/right edges (symmetric about the
+ * centre, so it stays under the camera), the bottom edge, or the bottom
+ * corners. Double-click any handle to reset to the default size.
+ */
 function ResizeHandles({ width, height }: { width: number; height: number }) {
   const setArea = usePrompter((s) => s.setArea);
   const position = useSystem((s) => s.settings?.general.position ?? "center");
   const scale = useSystem((s) => s.settings?.general.uiScale ?? 1);
-  const drag = useRef<{ x: number; y: number; w: number; h: number; edge: "left" | "right" | "bottom" } | null>(null);
+  const drag = useRef<{ x: number; y: number; w: number; h: number; edge: Edge } | null>(null);
 
-  const begin = (edge: "left" | "right" | "bottom") => (e: PointerEvent<HTMLDivElement>) => {
+  const save = (area: { width: number; height: number }) => {
+    const settings = useSystem.getState().settings;
+    if (!settings) return;
+    run(
+      commands.settingsSet({ ...settings, prompter: { ...settings.prompter, width: area.width, height: area.height } }),
+      "settings_set",
+    );
+  };
+
+  const begin = (edge: Edge) => (e: PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, w: width, h: height, edge };
@@ -483,17 +538,19 @@ function ResizeHandles({ width, height }: { width: number; height: number }) {
   const move = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d) return;
+    const lim = areaLimits(scale);
     // Pointer moves in screen px; the island is drawn at --ui-scale.
     const dx = (e.clientX - d.x) / scale;
+    const dy = (e.clientY - d.y) / scale;
     // A centred island grows on both sides, so each side moves half as far.
     const factor = position === "center" ? 2 : 1;
     let w = d.w;
-    if (d.edge === "right") w = d.w + dx * factor;
-    if (d.edge === "left") w = d.w - dx * factor;
-    const h = d.edge === "bottom" ? d.h + (e.clientY - d.y) / scale : d.h;
+    if (d.edge === "right" || d.edge === "bottomRight") w = d.w + dx * factor;
+    if (d.edge === "left" || d.edge === "bottomLeft") w = d.w - dx * factor;
+    const h = d.edge === "bottom" || d.edge === "bottomLeft" || d.edge === "bottomRight" ? d.h + dy : d.h;
     setArea({
-      width: Math.round(Math.min(AREA_LIMITS.maxW, Math.max(AREA_LIMITS.minW, w))),
-      height: Math.round(Math.min(AREA_LIMITS.maxH, Math.max(AREA_LIMITS.minH, h))),
+      width: Math.round(Math.min(lim.maxW, Math.max(lim.minW, w))),
+      height: Math.round(Math.min(lim.maxH, Math.max(lim.minH, h))),
     });
   };
 
@@ -502,27 +559,37 @@ function ResizeHandles({ width, height }: { width: number; height: number }) {
     drag.current = null;
     useIsland.getState().setDragging(false);
     const area = usePrompter.getState().area;
-    const settings = useSystem.getState().settings;
-    if (area && settings) {
-      run(
-        commands.settingsSet({ ...settings, prompter: { ...settings.prompter, width: area.width, height: area.height } }),
-        "settings_set",
-      );
-    }
+    if (area) save(area);
     // Keep the live size until the saved settings arrive, then let them take over.
     window.setTimeout(() => setArea(null), 400);
   };
 
-  const handlers = { onPointerMove: move, onPointerUp: end, onPointerCancel: end };
+  const reset = () => {
+    setArea(DEFAULT_AREA);
+    save(DEFAULT_AREA);
+    window.setTimeout(() => setArea(null), 400);
+  };
+
+  const handle = (edge: Edge, cls: string) => (
+    <div
+      className={`${styles.handle} ${cls}`}
+      onPointerDown={begin(edge)}
+      onPointerMove={move}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onDoubleClick={reset}
+      title="Drag to resize · double-click to reset"
+      aria-hidden="true"
+    />
+  );
+
   return (
     <>
-      {position !== "left" && (
-        <div className={`${styles.handle} ${styles.handleLeft}`} onPointerDown={begin("left")} {...handlers} aria-hidden="true" />
-      )}
-      {position !== "right" && (
-        <div className={`${styles.handle} ${styles.handleRight}`} onPointerDown={begin("right")} {...handlers} aria-hidden="true" />
-      )}
-      <div className={`${styles.handle} ${styles.handleBottom}`} onPointerDown={begin("bottom")} {...handlers} aria-hidden="true" />
+      {position !== "left" && handle("left", styles.handleLeft)}
+      {position !== "right" && handle("right", styles.handleRight)}
+      {handle("bottom", styles.handleBottom)}
+      {position !== "left" && handle("bottomLeft", styles.handleCornerLeft)}
+      {position !== "right" && handle("bottomRight", styles.handleCornerRight)}
     </>
   );
 }

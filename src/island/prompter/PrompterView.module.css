@@ -365,17 +365,18 @@
   font-weight: 600;
 }
 
-/* Resize grips along the prompter's free edges. */
+/* Resize grips along the prompter's free edges and bottom corners.
+   Subtle until you hover the prompter. */
 .handle {
   position: absolute;
-  z-index: 2;
+  z-index: 4;
   touch-action: none;
 }
 
 .handleLeft,
 .handleRight {
   top: 30px;
-  bottom: 30px;
+  bottom: 22px;
   width: 10px;
   cursor: ew-resize;
 }
@@ -389,27 +390,93 @@
 }
 
 .handleBottom {
-  left: 40px;
-  right: 40px;
+  left: 22px;
+  right: 22px;
   bottom: 0;
   height: 8px;
   cursor: ns-resize;
 }
 
-.handleBottom::after {
+.handleCornerLeft,
+.handleCornerRight {
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+}
+
+.handleCornerLeft {
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.handleCornerRight {
+  right: 0;
+  cursor: nwse-resize;
+}
+
+/* Grip marks: a short bar on edges, a small arc in the corners. */
+.handleLeft::after,
+.handleRight::after,
+.handleBottom::after,
+.handleCornerLeft::after,
+.handleCornerRight::after {
   content: "";
   position: absolute;
+  background: var(--ol-text-3);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.handleLeft::after,
+.handleRight::after {
+  top: 50%;
+  width: 3px;
+  height: 28px;
+  margin-top: -14px;
+}
+
+.handleLeft::after {
+  left: 3px;
+}
+
+.handleRight::after {
+  right: 3px;
+}
+
+.handleBottom::after {
   left: 50%;
   bottom: 3px;
   width: 36px;
   height: 3px;
   margin-left: -18px;
-  border-radius: 2px;
-  background: var(--ol-track);
-  opacity: 0;
-  transition: opacity 150ms ease;
 }
 
-.prompter:hover .handleBottom::after {
-  opacity: 1;
+.handleCornerLeft::after,
+.handleCornerRight::after {
+  bottom: 5px;
+  width: 10px;
+  height: 10px;
+  background: none;
+  border-bottom: 2px solid var(--ol-text-3);
+}
+
+.handleCornerLeft::after {
+  left: 5px;
+  border-left: 2px solid var(--ol-text-3);
+  border-bottom-left-radius: 8px;
+}
+
+.handleCornerRight::after {
+  right: 5px;
+  border-right: 2px solid var(--ol-text-3);
+  border-bottom-right-radius: 8px;
+}
+
+.prompter:hover .handle::after {
+  opacity: 0.6;
+}
+
+.handle:hover::after {
+  opacity: 1 !important;
 }

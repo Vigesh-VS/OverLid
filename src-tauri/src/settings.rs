@@ -418,8 +418,9 @@ impl Settings {
         p.font_size = p.font_size.clamp(14, 72);
         p.line_height = p.line_height.clamp(1.0, 2.2);
         p.speed = p.speed.clamp(5.0, 400.0);
-        p.width = p.width.clamp(320, 760);
-        p.height = p.height.clamp(120, 420);
+        // Upper bounds are generous; the UI limits to 90 % × 60 % of the screen.
+        p.width = p.width.clamp(280, 4000);
+        p.height = p.height.clamp(80, 2400);
         p.voice_threshold = p.voice_threshold.clamp(0.0, 1.0);
         p.lines_per_minute = p.lines_per_minute.clamp(2.0, 200.0);
         p.duration_min = p.duration_min.clamp(0.5, 180.0);

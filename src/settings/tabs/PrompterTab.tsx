@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AmbientLayer, safeOpacity } from "../../components/AmbientLayer";
+import { areaLimits } from "../../island/prompter/PrompterView";
 import {
   commands,
   on,
@@ -78,6 +79,7 @@ export function PrompterTab() {
   if (!settings) return null;
   const p = settings.prompter;
   const set = (patch: Partial<typeof p>) => update(section("prompter", patch));
+  const lim = areaLimits(settings.general.uiScale);
   const custom = !COLORS.some((c) => c.value.toLowerCase() === p.color.toLowerCase());
 
   return (
@@ -132,9 +134,9 @@ export function PrompterTab() {
         <Toggle label="Mirror mode" hint="Flip the text for teleprompter glass." checked={p.mirror} onChange={(v) => set({ mirror: v })} />
       </Group>
 
-      <Group title="Area" note="You can also drag the prompter's left, right and bottom edges while presenting.">
-        <Slider label="Width" value={p.width} min={320} max={760} step={10} format={(v) => `${v} px`} onChange={(v) => set({ width: v })} />
-        <Slider label="Height" value={p.height} min={120} max={420} step={10} format={(v) => `${v} px`} onChange={(v) => set({ height: v })} />
+      <Group title="Area" note="You can also drag the prompter's edges and bottom corners while presenting. Double-click a handle to reset to 560 × 200.">
+        <Slider label="Width" value={p.width} min={lim.minW} max={lim.maxW} step={10} format={(v) => `${v} px`} onChange={(v) => set({ width: v })} />
+        <Slider label="Height" value={p.height} min={lim.minH} max={lim.maxH} step={10} format={(v) => `${v} px`} onChange={(v) => set({ height: v })} />
       </Group>
 
       <Group title="Auto-scroll timing" note="Ctrl+Alt+Up and Down still adjust the pace while you present.">

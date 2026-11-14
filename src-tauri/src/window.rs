@@ -56,6 +56,36 @@ pub struct IslandFlags {
 pub struct HitState {
     rect: Mutex<HitRect>,
     flags: Mutex<IslandFlags>,
+    /// Extra room the island needs (logical px, before UI scale), e.g. for a
+    /// large teleprompter. The window grows to fit; (0, 0) = default size.
+    extent: Mutex<(f64, f64)>,
+}
+
+/// Grow (or restore) the island window so a large prompter fits. Width and
+/// height are the space the island content needs, in logical px.
+#[tauri::command]
+pub fn island_set_extent(app: AppHandle, state: tauri::State<'_, HitState>, width: f64, height: f64) {
+    let next = (width.clamp(0.0, 8000.0), height.clamp(0.0, 4000.0));
+    let changed = match state.extent.lock() {
+        Ok(mut current) => {
+            let differs = (current.0 - next.0).abs() > 1.0 || (current.1 - next.1).abs() > 1.0;
+            *current = next;
+            differs
+        }
+        Err(e) => {
+            log::error!("extent lock poisoned: {e}");
+            false
+        }
+    };
+    if changed {
+        reposition(&app);
+    }
+}
+
+fn extent(app: &AppHandle) -> (f64, f64) {
+    app.try_state::<HitState>()
+        .and_then(|s| s.extent.lock().ok().map(|e| *e))
+        .unwrap_or((0.0, 0.0))
 }
 
 #[tauri::command]
@@ -159,18 +189,20 @@ pub fn reposition(app: &AppHandle) {
             Some(m) => m,
             None => win.current_monitor()?.context("no monitor found")?,
         };
-        place(&win, &monitor, &settings::current(app).general)
+        place(&win, &monitor, &settings::current(app).general, extent(app))
     });
     if let Err(e) = result {
         log::error!("positioning island failed: {e:#}");
     }
 }
 
-fn place(win: &WebviewWindow, monitor: &Monitor, general: &settings::General) -> anyhow::Result<()> {
+fn place(win: &WebviewWindow, monitor: &Monitor, general: &settings::General, extent: (f64, f64)) -> anyhow::Result<()> {
     // Window grows with the island's own UI scale so nothing gets clipped.
     let scale = monitor.scale_factor() * general.ui_scale;
-    let width = (WINDOW_W * scale).round() as i32;
-    let height = (WINDOW_H * scale).round() as u32;
+    // Never wider than the monitor, even for a huge prompter.
+    let max_w = f64::from(monitor.size().width);
+    let width = (WINDOW_W.max(extent.0) * scale).min(max_w).round() as i32;
+    let height = (WINDOW_H.max(extent.1) * scale).min(f64::from(monitor.size().height)).round() as u32;
     let origin = monitor.position();
     let monitor_w = monitor.size().width as i32;
     let offset = (f64::from(general.offset_x) * monitor.scale_factor()).round() as i32;

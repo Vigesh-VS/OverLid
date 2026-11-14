@@ -121,6 +121,16 @@ export function Island() {
     }
   }, [hovered, expanded, presenting, overIndicator, suppressExpand, closeDelay, setMode, setPanel, tokens]);
 
+  // A big prompter needs a bigger window: ask Rust to grow it (rounded up to
+  // 40 px steps so dragging doesn't resize the window every frame), and
+  // restore the normal size when the prompter stops.
+  const extentW = view === "prompter" ? Math.ceil((shape.width + 2 * shape.ear + 24) / 40) * 40 : 0;
+  const extentH = view === "prompter" ? Math.ceil((shape.height + 24) / 40) * 40 : 0;
+  useEffect(() => {
+    if (!inTauri) return;
+    commands.islandSetExtent(extentW, extentH).catch((e: unknown) => console.error("island_set_extent failed", e));
+  }, [extentW, extentH]);
+
   // Starting the prompter closes the expanded island.
   useEffect(() => {
     if (presenting) setMode("collapsed");
