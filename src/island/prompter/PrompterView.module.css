@@ -480,3 +480,30 @@
 .handle:hover::after {
   opacity: 1 !important;
 }
+
+/* Stepper label that briefly shows the live value after a change. */
+.flash {
+  position: relative;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.flashLabel,
+.flashValue {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.flashLabel {
+  color: var(--ol-text-2);
+  font-size: var(--ol-fs-xs);
+}
+
+.flashValue {
+  color: var(--ol-text);
+  font-size: var(--ol-fs-xs);
+  font-weight: 700;
+}

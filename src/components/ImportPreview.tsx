@@ -21,7 +21,7 @@ export function ImportPreview({
 }) {
   const [title, setTitle] = useState(imported.title);
   const [voice, setVoice] = useState(settings?.prompter.voice ?? false);
-  const [speed, setSpeed] = useState(settings?.prompter.speed ?? 60);
+  const [speed, setSpeed] = useState(settings?.prompter.speed ?? 20);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

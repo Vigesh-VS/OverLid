@@ -161,7 +161,7 @@ export function PrompterPanel() {
 
 function pace(settings: Settings | null): string {
   const p = settings?.prompter;
-  if (!p) return "60 px/s";
+  if (!p) return "20 px/s";
   if (p.voice) return "Voice mode";
   if (p.timingMode === "lines") return `${Math.round(p.linesPerMinute)} lines/min`;
   if (p.timingMode === "duration") return `Finish in ${p.durationMin} min`;

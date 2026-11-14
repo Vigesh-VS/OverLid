@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 
+import { AnimatePresence, motion } from "framer-motion";
+
 import { AmbientLayer, useAmbientColors } from "../../components/AmbientLayer";
 import { MicIcon, PauseIcon, PlayIcon } from "../../components/icons";
 import { commands, run } from "../../lib/ipc";
@@ -152,7 +154,7 @@ export function PrompterView() {
     voiceReady: voiceState === "listening",
     threshold: prefs?.voiceThreshold ?? 0.4,
     mode: prefs?.timingMode ?? "speed",
-    pxPerSec: prefs?.speed ?? 60,
+    pxPerSec: prefs?.speed ?? 20,
     linePx,
     lpm: prefs?.linesPerMinute ?? 30,
     durationSec: (prefs?.durationMin ?? 5) * 60,
@@ -321,6 +323,11 @@ export function PrompterView() {
 
 
   const color = prefs?.color ?? "#FFFFFF";
+  const mode = prefs?.timingMode ?? "speed";
+  const speedText =
+    mode === "duration"
+      ? `${Math.round(((prefs?.durationMin ?? 5) / rate) * 10) / 10} min`
+      : `${Math.round((mode === "lines" ? ((prefs?.linesPerMinute ?? 30) * linePx) / 60 : (prefs?.speed ?? 20)) * rate)} px/s`;
   const ambientColors = useAmbientColors(prefs?.ambient, true);
   const t = tops();
   const [first, last] = range;
@@ -410,7 +417,7 @@ export function PrompterView() {
           <button type="button" aria-label="Slower" title="Slower" onClick={() => handle("slower")}>
             −
           </button>
-          <span>Speed</span>
+          <FlashLabel label="Speed" value={speedText} watch={rate} width={52} />
           <button type="button" aria-label="Faster" title="Faster" onClick={() => handle("faster")}>
             +
           </button>
@@ -419,6 +426,7 @@ export function PrompterView() {
           <button type="button" aria-label="Smaller text" title="Smaller text" onClick={() => handle("smaller")}>
             A−
           </button>
+          <FlashLabel label="Size" value={`${size} px`} watch={size} width={40} />
           <button type="button" aria-label="Bigger text" title="Bigger text" onClick={() => handle("bigger")}>
             A+
           </button>
@@ -559,6 +567,43 @@ function ResizeHandles({ width, height }: { width: number; height: number }) {
       {position !== "left" && handle("bottomLeft", styles.handleCornerLeft)}
       {position !== "right" && handle("bottomRight", styles.handleCornerRight)}
     </>
+  );
+}
+
+/** How long a changed value stays on screen before the label comes back. */
+const FLASH_MS = 1500;
+
+/**
+ * Shows `label` normally; whenever `watch` changes it swaps to `value`
+ * (e.g. "24 px/s") for a moment, then fades back. Fixed width so the
+ * toolbar never jumps.
+ */
+function FlashLabel({ label, value, watch, width }: { label: string; value: string; watch: unknown; width: number }) {
+  const [flash, setFlash] = useState(false);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    setFlash(true);
+    const id = window.setTimeout(() => setFlash(false), FLASH_MS);
+    return () => window.clearTimeout(id);
+  }, [watch]);
+  return (
+    <span className={styles.flash} style={{ width }} aria-live="polite">
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          key={flash ? `v-${value}` : "label"}
+          className={flash ? styles.flashValue : styles.flashLabel}
+          initial={{ opacity: 0, y: flash ? 6 : -6 }}
+          animate={{ opacity: 1, y: 0, transition: { duration: 0.16 } }}
+          exit={{ opacity: 0, y: flash ? -6 : 6, transition: { duration: 0.12 } }}
+        >
+          {flash ? value : label}
+        </motion.span>
+      </AnimatePresence>
+    </span>
   );
 }
 

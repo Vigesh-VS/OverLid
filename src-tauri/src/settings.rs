@@ -317,7 +317,7 @@ impl Default for Prompter {
             font_size: 28,
             line_height: 1.4,
             color: "#FFFFFF".into(),
-            speed: 60.0,
+            speed: 20.0,
             mirror: false,
             width: 560,
             height: 200,
