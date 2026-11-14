@@ -27,6 +27,18 @@ Download the latest `Overlid_x.y.z_x64-setup.exe` from [Releases](https://github
 
 Requires Windows 10 version 2004 or later (for screen-capture protection) and the WebView2 runtime, which Windows 11 already has.
 
+### Check your download
+
+Every release has a `SHA256SUMS.txt` next to the installer. In PowerShell, in the folder you downloaded to:
+
+```powershell
+(Get-FileHash .\Overlid_x.y.z_x64-setup.exe -Algorithm SHA256).Hash.ToLower()
+```
+
+The result must match the line for that file in `SHA256SUMS.txt`. If it doesn't, delete the file and download it again from the Releases page only.
+
+**SmartScreen:** the installer isn't code-signed yet, so Windows may show "Windows protected your PC". Check the checksum first, then choose **More info › Run anyway**. Only do this for files from this repository's Releases page.
+
 ## Using it
 
 | Do this | To |
@@ -69,19 +81,24 @@ The first connected tool is the primary one, shown in the pill. These usage endp
 **Live Claude Code sessions** are separate: click **Connect live sessions**. Overlid then:
 
 1. backs up `~/.claude/settings.json` to `settings.json.overlid-backup-<timestamp>`,
-2. adds one `"type": "http"` hook per event, pointing at `http://127.0.0.1:47823/hook`,
+2. adds one `"type": "http"` hook per event, pointing at `http://127.0.0.1:47823/hook` and carrying a random per-install `X-Overlid-Token` header,
 3. leaves your own hooks and every other setting untouched.
 
-**Disconnect** removes only Overlid's entries. When Overlid isn't running, the hooks fail quietly and Claude Code carries on as normal.
+**Disconnect** removes only Overlid's entries, and so does uninstalling Overlid. When Overlid isn't running, the hooks fail quietly and Claude Code carries on as normal. Overlid only ever edits `%USERPROFILE%\.claude\settings.json` (a `CLAUDE_CONFIG_DIR` override isn't used for hooks), and won't edit it through a symlink or junction.
 
 ## Privacy
 
 - No telemetry, no accounts.
 - Usage is only fetched for tools you connect. Their saved sign-ins are only read, never written, refreshed or logged, and each is sent only to that tool's own usage endpoint (Anthropic, ChatGPT or GitHub).
-- The hook receiver listens on `127.0.0.1` only.
+- The hook receiver listens on `127.0.0.1` only and rejects anything without its per-install token, anything from a browser (an `Origin` header or a foreign `Host`), and oversized or malformed events. It keeps only the event, session id, folder and a short message; tool inputs, prompts and transcripts are never read.
+- Network requests go only to the three usage endpoints, over HTTPS, with no redirects.
+- Logs stay on your PC (up to 4 × 1 MB) and mask anything that looks like a token.
+- Settings › About lists everything stored locally and has **Clear all Overlid data**.
 - Voice mode measures microphone loudness in memory. Audio is never recorded, stored or sent.
 - The ambient background's "live screen colour" averages a tiny 16×9 copy of the screen once a second, only while presenting, in memory only.
 - Caps Lock and Num Lock are read with `GetKeyState`. There is no keyboard hook.
+
+Found a security problem? See [SECURITY.md](SECURITY.md).
 
 ## Build from source
 
