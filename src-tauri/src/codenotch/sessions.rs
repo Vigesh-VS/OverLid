@@ -11,8 +11,7 @@ use std::thread;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::Serialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::peek::{self, Peek, PeekKind, Tone};
@@ -23,6 +22,103 @@ const DONE_FOR: Duration = Duration::from_secs(10);
 const IDLE_EXPIRY: Duration = Duration::from_secs(30 * 60);
 /// A busy session that goes silent this long probably crashed.
 const BUSY_STALE: Duration = Duration::from_secs(15 * 60);
+/// Tracked sessions; the least recently updated one is dropped beyond this.
+const MAX_SESSIONS: usize = 50;
+const MAX_SESSION_ID: usize = 128;
+const MAX_CWD: usize = 1024;
+const MAX_MESSAGE: usize = 300;
+const MAX_TOOL: usize = 64;
+
+/// The hook events Overlid installs. Anything else is rejected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum EventName {
+    SessionStart,
+    UserPromptSubmit,
+    PreToolUse,
+    PostToolUse,
+    Notification,
+    PermissionRequest,
+    Stop,
+    SessionEnd,
+}
+
+/// The only fields read from a hook. Everything else (tool_input,
+/// tool_response, prompts, transcript paths) is skipped unread.
+#[derive(Deserialize)]
+struct RawHook {
+    hook_event_name: EventName,
+    session_id: String,
+    #[serde(default)]
+    cwd: Option<String>,
+    #[serde(default)]
+    message: Option<String>,
+    #[serde(default)]
+    tool_name: Option<String>,
+}
+
+/// A validated hook event.
+#[derive(Debug, Clone)]
+pub struct HookEvent {
+    pub event: EventName,
+    pub session_id: String,
+    /// A local folder path, or empty.
+    pub cwd: String,
+    pub message: Option<String>,
+    pub tool: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum HookError {
+    Json,
+    SessionId,
+    Cwd,
+}
+
+/// Strip control characters, collapse whitespace, cap the length.
+fn clean_text(s: &str, max: usize) -> Option<String> {
+    let cleaned: String = s
+        .split(|c: char| c.is_whitespace() || c.is_control())
+        .filter(|w| !w.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(max)
+        .collect();
+    (!cleaned.is_empty()).then_some(cleaned)
+}
+
+/// A plain local folder like `C:\code\app`. Network (`\\host\share`) and
+/// device paths are refused: even checking them could reach out to a server.
+pub fn is_local_path(path: &str) -> bool {
+    let b = path.as_bytes();
+    b.len() >= 3
+        && b[0].is_ascii_alphabetic()
+        && b[1] == b':'
+        && matches!(b[2], b'\\' | b'/')
+        && !path.chars().any(char::is_control)
+}
+
+/// Parse and validate one hook body.
+pub fn parse_hook(body: &[u8]) -> Result<HookEvent, HookError> {
+    let raw: RawHook = serde_json::from_slice(body).map_err(|_| HookError::Json)?;
+    let id_ok = !raw.session_id.is_empty()
+        && raw.session_id.len() <= MAX_SESSION_ID
+        && raw.session_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+    if !id_ok {
+        return Err(HookError::SessionId);
+    }
+    let cwd = raw.cwd.unwrap_or_default();
+    if cwd.chars().count() > MAX_CWD {
+        return Err(HookError::Cwd);
+    }
+    Ok(HookEvent {
+        event: raw.hook_event_name,
+        session_id: raw.session_id,
+        cwd: if is_local_path(&cwd) { cwd } else { String::new() },
+        message: raw.message.as_deref().and_then(|m| clean_text(m, MAX_MESSAGE)),
+        tool: raw.tool_name.as_deref().and_then(|t| clean_text(t, MAX_TOOL)),
+    })
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,10 +192,6 @@ fn label_for(cwd: &str) -> String {
         .unwrap_or_else(|| "Claude Code".into())
 }
 
-fn str_field<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
-    v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
-}
-
 fn ran_for(since: Option<DateTime<Utc>>) -> Option<String> {
     let secs = (Utc::now() - since?).num_seconds().max(0);
     Some(if secs >= 3600 {
@@ -116,20 +208,24 @@ enum Alert {
     Done(String, Option<String>),
 }
 
-/// Apply one hook payload. Unknown events are ignored.
-pub fn handle_hook(app: &AppHandle, payload: &Value) {
-    let Some(event) = str_field(payload, "hook_event_name") else { return };
-    let Some(id) = str_field(payload, "session_id") else { return };
-    let cwd = str_field(payload, "cwd").unwrap_or_default().to_owned();
+/// Apply one validated hook event.
+pub fn handle_hook(app: &AppHandle, hook: &HookEvent) {
+    use EventName as E;
+    let event = hook.event;
+    let id = hook.session_id.as_str();
+    let cwd = hook.cwd.clone();
     let Some(state) = app.try_state::<Sessions>() else { return };
 
     let alert = {
         let Ok(mut map) = state.0.lock() else { return };
-        if event == "SessionEnd" {
+        if event == E::SessionEnd {
             map.remove(id);
             None
         } else {
             let now = Utc::now();
+            if !map.contains_key(id) && map.len() >= MAX_SESSIONS {
+                evict_oldest(&mut map);
+            }
             let session = map.entry(id.to_owned()).or_insert_with(|| Session {
                 id: id.to_owned(),
                 label: label_for(&cwd),
@@ -148,40 +244,34 @@ pub fn handle_hook(app: &AppHandle, payload: &Value) {
             session.updated_at = now;
             let previous = session.status;
             match event {
-                "SessionStart" => {
+                E::SessionStart => {
                     session.status = Status::Idle;
                     session.message = None;
                     session.tool = None;
                     None
                 }
-                "UserPromptSubmit" => {
+                E::UserPromptSubmit => {
                     session.status = Status::Busy;
                     session.message = None;
                     session.tool = None;
                     session.turn_started_at = Some(now);
                     None
                 }
-                "PreToolUse" | "PostToolUse" => {
+                E::PreToolUse | E::PostToolUse => {
                     session.status = Status::Busy;
                     session.message = None;
-                    session.tool = if event == "PreToolUse" {
-                        str_field(payload, "tool_name").map(str::to_owned)
-                    } else {
-                        None
-                    };
+                    session.tool = if event == E::PreToolUse { hook.tool.clone() } else { None };
                     session.turn_started_at.get_or_insert(now);
                     None
                 }
-                "Notification" | "PermissionRequest" => {
-                    let message = if event == "PermissionRequest" {
-                        match str_field(payload, "tool_name") {
+                E::Notification | E::PermissionRequest => {
+                    let message = if event == E::PermissionRequest {
+                        match hook.tool.as_deref() {
                             Some(tool) => format!("Needs permission to use {tool}"),
                             None => "Needs your permission".to_owned(),
                         }
                     } else {
-                        str_field(payload, "message")
-                            .unwrap_or("Waiting for your input")
-                            .to_owned()
+                        hook.message.clone().unwrap_or_else(|| "Waiting for your input".to_owned())
                     };
                     let changed = previous != Status::Waiting || session.message.as_deref() != Some(&message);
                     if changed {
@@ -191,7 +281,7 @@ pub fn handle_hook(app: &AppHandle, payload: &Value) {
                     session.message = Some(message.clone());
                     changed.then(|| Alert::Waiting(session.label.clone(), message))
                 }
-                "Stop" => {
+                E::Stop => {
                     session.status = Status::Done;
                     session.message = None;
                     session.tool = None;
@@ -199,7 +289,7 @@ pub fn handle_hook(app: &AppHandle, payload: &Value) {
                     matches!(previous, Status::Busy | Status::Waiting)
                         .then(|| Alert::Done(session.label.clone(), ran))
                 }
-                _ => None,
+                E::SessionEnd => None,
             }
         }
     };
@@ -232,6 +322,12 @@ pub fn handle_hook(app: &AppHandle, payload: &Value) {
         None => {}
     }
     emit(app);
+}
+
+fn evict_oldest(map: &mut HashMap<String, Session>) {
+    if let Some(oldest) = map.values().min_by_key(|s| s.updated_at).map(|s| s.id.clone()) {
+        map.remove(&oldest);
+    }
 }
 
 fn sweep(app: &AppHandle) {
@@ -292,16 +388,90 @@ pub fn code_open_folder(app: AppHandle, session_id: String) -> Result<(), String
         .find(|s| s.id == session_id)
         .map(|s| s.cwd)
         .ok_or_else(|| "session not found".to_owned())?;
-    let path = Path::new(&cwd);
-    if !path.is_dir() {
+    if !is_local_path(&cwd) || !Path::new(&cwd).is_dir() {
         return Err("folder no longer exists".into());
     }
-    std::process::Command::new("explorer")
-        .arg(path)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| {
-            log::warn!("opening folder failed: {e}");
-            "couldn't open the folder".to_owned()
-        })
+    // Open the folder itself in Explorer: no file, no arguments, nothing run.
+    // SAFETY: plain call with valid, NUL-terminated strings.
+    let result = unsafe {
+        windows::Win32::UI::Shell::ShellExecuteW(
+            None,
+            windows::core::w!("explore"),
+            &windows::core::HSTRING::from(cwd.as_str()),
+            None,
+            None,
+            windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL,
+        )
+    };
+    // ShellExecute returns a value above 32 on success.
+    if result.0 as usize > 32 {
+        Ok(())
+    } else {
+        log::warn!("opening folder failed ({})", result.0 as usize);
+        Err("couldn't open the folder".to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_only_safe_fields() {
+        let body = br#"{"hook_event_name":"Notification","session_id":"s-1","cwd":"C:\\code\\app",
+            "message":"Need\u0007 you\n\n  now","tool_input":{"command":"rm -rf /"},"prompt":"secret"}"#;
+        let e = parse_hook(body).unwrap();
+        assert_eq!(e.event, EventName::Notification);
+        assert_eq!(e.cwd, r"C:\code\app");
+        assert_eq!(e.message.as_deref(), Some("Need you now"));
+    }
+
+    #[test]
+    fn rejects_bad_payloads() {
+        assert_eq!(parse_hook(br#"{"hook_event_name":"Exec","session_id":"a"}"#).unwrap_err(), HookError::Json);
+        assert_eq!(parse_hook(br#"{"hook_event_name":"Stop"}"#).unwrap_err(), HookError::Json);
+        let long_id = format!(r#"{{"hook_event_name":"Stop","session_id":"{}"}}"#, "a".repeat(129));
+        assert_eq!(parse_hook(long_id.as_bytes()).unwrap_err(), HookError::SessionId);
+        assert_eq!(parse_hook(br#"{"hook_event_name":"Stop","session_id":"a/../b"}"#).unwrap_err(), HookError::SessionId);
+        let long_cwd = format!(r#"{{"hook_event_name":"Stop","session_id":"a","cwd":"C:/{}"}}"#, "a".repeat(1100));
+        assert_eq!(parse_hook(long_cwd.as_bytes()).unwrap_err(), HookError::Cwd);
+    }
+
+    #[test]
+    fn message_is_capped() {
+        let body = format!(r#"{{"hook_event_name":"Notification","session_id":"a","message":"{}"}}"#, "x".repeat(1000));
+        let message = parse_hook(body.as_bytes()).unwrap().message;
+        assert_eq!(message.map(|m| m.chars().count()), Some(MAX_MESSAGE));
+    }
+
+    #[test]
+    fn network_paths_are_dropped() {
+        for cwd in [r"\\evil\share", r"\\?\C:\x", "//evil/share", r"relative\dir"] {
+            let body = serde_json::json!({ "hook_event_name": "Stop", "session_id": "a", "cwd": cwd }).to_string();
+            assert_eq!(parse_hook(body.as_bytes()).unwrap().cwd, "", "{cwd}");
+        }
+        assert!(is_local_path("D:/work"));
+    }
+
+    #[test]
+    fn evicts_the_oldest_session() {
+        let mut map = HashMap::new();
+        for i in 0..3 {
+            let id = format!("s{i}");
+            let session = Session {
+                id: id.clone(),
+                label: String::new(),
+                cwd: String::new(),
+                status: Status::Idle,
+                message: None,
+                tool: None,
+                turn_started_at: None,
+                updated_at: Utc::now() + chrono::Duration::seconds(i),
+                acknowledged: false,
+            };
+            map.insert(id, session);
+        }
+        evict_oldest(&mut map);
+        assert!(!map.contains_key("s0") && map.len() == 2);
+    }
 }

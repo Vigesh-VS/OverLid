@@ -11,6 +11,8 @@ use anyhow::{Context, bail};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
+use crate::secret::Secret;
+
 const EVENTS: [&str; 8] = [
     "SessionStart",
     "UserPromptSubmit",
@@ -55,12 +57,26 @@ fn hook_url(port: u16) -> String {
     format!("http://127.0.0.1:{port}/hook?{TAG}")
 }
 
+/// One HTTP hook. The token header proves a request came from these hooks.
+fn hook_entry(port: u16, token: &str) -> Value {
+    json!({
+        "type": "http",
+        "url": hook_url(port),
+        "timeout": 2,
+        "headers": { "X-Overlid-Token": token }
+    })
+}
+
 fn is_ours(hook: &Value) -> bool {
     hook.get("type").and_then(Value::as_str) == Some("http")
         && hook
             .get("url")
             .and_then(Value::as_str)
             .is_some_and(|u| u.starts_with("http://127.0.0.1:") && u.contains(TAG))
+}
+
+fn token_of(hook: &Value) -> Option<&str> {
+    hook.get("headers")?.get("X-Overlid-Token")?.as_str()
 }
 
 fn port_of(hook: &Value) -> Option<u16> {
@@ -135,10 +151,23 @@ pub fn status(listening_port: Option<u16>) -> HookStatus {
     }
 }
 
-/// Port our installed hooks point at, if any are installed.
-pub fn installed_port() -> Option<u16> {
-    let (_, value) = read_settings().ok()?;
-    scan(&value?).1
+/// Our hooks are installed but point at another port or carry an old token.
+pub fn needs_update(port: u16, token: &str) -> bool {
+    let Ok((_, Some(root))) = read_settings() else { return false };
+    let Some(hooks) = root.get("hooks").and_then(Value::as_object) else { return false };
+    let ours: Vec<&Value> = hooks
+        .values()
+        .filter_map(Value::as_array)
+        .flatten()
+        .filter_map(|g| g.get("hooks").and_then(Value::as_array))
+        .flatten()
+        .filter(|h| is_ours(h))
+        .collect();
+    !ours.is_empty()
+        && ours.iter().any(|h| {
+            port_of(h) != Some(port)
+                || !token_of(h).is_some_and(|t| super::hook_token::constant_time_eq(t.as_bytes(), token.as_bytes()))
+        })
 }
 
 /// Remove our entries. Groups/events/the hooks object are removed only when
@@ -195,7 +224,7 @@ fn write(path: &PathBuf, value: &Value) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn install(port: u16) -> anyhow::Result<ChangeReport> {
+pub fn install(port: u16, token: &Secret) -> anyhow::Result<ChangeReport> {
     let (path, existing) = read_settings()?;
     let backup = backup(&path)?;
     let mut root = existing.unwrap_or_else(|| Value::Object(Map::new()));
@@ -214,9 +243,7 @@ pub fn install(port: u16) -> anyhow::Result<ChangeReport> {
             let Some(groups) = groups.as_array_mut() else {
                 bail!("hooks.{event} in {} isn't a list, so it was left untouched", path.display());
             };
-            let mut group = json!({
-                "hooks": [{ "type": "http", "url": hook_url(port), "timeout": 2 }]
-            });
+            let mut group = json!({ "hooks": [hook_entry(port, token.expose())] });
             if TOOL_EVENTS.contains(&event)
                 && let Some(g) = group.as_object_mut()
             {
@@ -281,7 +308,7 @@ mod tests {
             groups
                 .as_array_mut()
                 .unwrap()
-                .push(json!({ "hooks": [{ "type": "http", "url": hook_url(port), "timeout": 2 }] }));
+                .push(json!({ "hooks": [hook_entry(port, "t0k3n")] }));
         }
     }
 
@@ -307,6 +334,13 @@ mod tests {
         add_ours(&mut root, 1);
         strip(&mut root);
         assert_eq!(root, json!({ "model": "opus" }));
+    }
+
+    #[test]
+    fn entries_carry_the_token_header() {
+        let hook = hook_entry(47823, "abc");
+        assert!(is_ours(&hook));
+        assert_eq!(token_of(&hook), Some("abc"));
     }
 
     #[test]

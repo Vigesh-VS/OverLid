@@ -10,6 +10,7 @@ pub mod codex;
 pub mod copilot;
 pub mod hook_installer;
 pub mod hook_server;
+pub mod hook_token;
 pub mod sessions;
 
 use std::collections::HashMap;
@@ -298,7 +299,8 @@ pub fn code_hook_status(app: AppHandle) -> hook_installer::HookStatus {
 pub async fn code_connect(app: AppHandle) -> Result<hook_installer::ChangeReport, String> {
     let port = hook_server::bound_port(&app)
         .ok_or_else(|| "The hook receiver isn't running, so there's nothing to connect to.".to_owned())?;
-    hook_installer::install(port).map_err(|e| {
+    let token = hook_server::token(&app).ok_or_else(|| "The hook receiver has no token yet.".to_owned())?;
+    hook_installer::install(port, &token).map_err(|e| {
         log::warn!("hook install failed: {e:#}");
         format!("{e:#}")
     })
