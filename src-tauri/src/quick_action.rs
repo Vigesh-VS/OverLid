@@ -11,7 +11,7 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::Shell::{ExtractIconExW, ShellExecuteW};
 use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO, SW_SHOWNORMAL};
-use windows::core::{HSTRING, w};
+use windows::core::{HSTRING, PCWSTR, w};
 
 use crate::settings::{self, QuickKind};
 
@@ -19,10 +19,12 @@ pub const PROMPTER_START_EVENT: &str = "prompter://start";
 
 /// Open a file, folder or URL with its default handler. No shell command
 /// strings are built: the target goes straight to ShellExecuteW.
-fn shell_open(target: &str) -> anyhow::Result<()> {
+/// ShellExecute with a fixed verb and no parameters: nothing is ever
+/// passed to a command line.
+fn shell_open(verb: PCWSTR, target: &str) -> anyhow::Result<()> {
     let file = HSTRING::from(target);
     // SAFETY: all strings are valid, null-terminated HSTRINGs.
-    let result = unsafe { ShellExecuteW(None, w!("open"), &file, None, None, SW_SHOWNORMAL) };
+    let result = unsafe { ShellExecuteW(None, verb, &file, None, None, SW_SHOWNORMAL) };
     // ShellExecute returns a value greater than 32 on success.
     if result.0 as isize <= 32 {
         bail!("Windows couldn't open {target}");
@@ -30,9 +32,28 @@ fn shell_open(target: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn looks_like_url(s: &str) -> bool {
-    let lower = s.to_ascii_lowercase();
-    lower.starts_with("https://") || lower.starts_with("http://") || lower.starts_with("mailto:")
+/// A web address the quick action may open: http or https with a host and
+/// no `user:pass@`. Every other scheme (`file:`, `javascript:`, `data:`,
+/// `ms-settings:`, `search-ms:`, `mailto:` …) is refused.
+pub fn safe_web_url(s: &str) -> Option<String> {
+    let url = reqwest::Url::parse(s.trim()).ok()?;
+    let ok = matches!(url.scheme(), "http" | "https")
+        && url.host_str().is_some_and(|h| !h.is_empty())
+        && url.username().is_empty()
+        && url.password().is_none();
+    ok.then(|| url.to_string())
+}
+
+/// A local .exe that exists.
+fn launchable(path: &str) -> bool {
+    crate::codenotch::sessions::is_local_path(path)
+        && Path::new(path).extension().is_some_and(|e| e.eq_ignore_ascii_case("exe"))
+        && Path::new(path).is_file()
+}
+
+/// A local folder that exists.
+fn openable_folder(path: &str) -> bool {
+    crate::codenotch::sessions::is_local_path(path) && Path::new(path).is_dir()
 }
 
 /// Run the configured quick action.
@@ -41,20 +62,23 @@ pub fn quick_action_run(app: AppHandle) -> Result<(), String> {
     let action = settings::current(&app).quick_action;
     let result: anyhow::Result<()> = match action.kind {
         QuickKind::None => Ok(()),
+        // Re-checked on every run: the settings file could have been edited.
         QuickKind::Launch => {
             let path = action.payload.trim();
-            if !Path::new(path).is_file() {
-                Err(anyhow::anyhow!("The app at {path} wasn't found."))
+            if launchable(path) {
+                shell_open(w!("open"), path)
             } else {
-                shell_open(path)
+                Err(anyhow::anyhow!("The app at {path} wasn't found, or isn't a program (.exe)."))
             }
         }
         QuickKind::Url => {
             let target = action.payload.trim();
-            if looks_like_url(target) || Path::new(target).exists() {
-                shell_open(target)
+            if let Some(url) = safe_web_url(target) {
+                shell_open(w!("open"), &url)
+            } else if openable_folder(target) {
+                shell_open(w!("explore"), target)
             } else {
-                Err(anyhow::anyhow!("{target} isn't a web address or an existing folder."))
+                Err(anyhow::anyhow!("{target} isn't an http(s) web address or an existing folder."))
             }
         }
         QuickKind::Pomodoro => {
@@ -67,9 +91,14 @@ pub fn quick_action_run(app: AppHandle) -> Result<(), String> {
             }
             Ok(())
         }
-        QuickKind::Prompter => app
-            .emit(PROMPTER_START_EVENT, action.payload.trim().to_owned())
-            .context("couldn't start the prompter"),
+        QuickKind::Prompter => {
+            let id = action.payload.trim();
+            if id.len() > 64 || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+                Err(anyhow::anyhow!("The quick action's script id isn't valid."))
+            } else {
+                app.emit(PROMPTER_START_EVENT, id.to_owned()).context("couldn't start the prompter")
+            }
+        }
     };
     result.map_err(|e| {
         log::warn!("quick action failed: {e:#}");
@@ -255,4 +284,42 @@ fn scan_start_menu() -> Vec<InstalledApp> {
     let mut apps: Vec<InstalledApp> = found.into_values().collect();
     apps.sort_by_key(|a| a.name.to_lowercase());
     apps
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_http_and_https_urls() {
+        assert_eq!(safe_web_url(" https://example.com/a?b=1 ").as_deref(), Some("https://example.com/a?b=1"));
+        assert!(safe_web_url("HTTP://Example.com").is_some());
+        for bad in [
+            "javascript:alert(1)",
+            "JavaScript:alert(1)",
+            "file:///C:/Windows/System32/calc.exe",
+            "data:text/html,<script>alert(1)</script>",
+            "ms-settings:privacy",
+            "search-ms:query=x",
+            "mailto:a@b.c",
+            "vbscript:msgbox",
+            "\\\\evil\\share",
+            "https://user:pass@example.com",
+            "https://",
+            "C:\\Windows\\notepad.exe",
+            "",
+        ] {
+            assert!(safe_web_url(bad).is_none(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn launch_needs_a_local_exe() {
+        assert!(!launchable("\\\\evil\\share\\app.exe"));
+        assert!(!launchable("C:\\Windows\\System32\\drivers\\etc\\hosts"));
+        assert!(!launchable("C:\\does-not-exist\\app.exe"));
+        assert!(launchable("C:\\Windows\\System32\\notepad.exe"));
+        assert!(!openable_folder("C:\\Windows\\System32\\notepad.exe"));
+        assert!(openable_folder("C:\\Windows"));
+    }
 }

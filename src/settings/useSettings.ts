@@ -42,6 +42,6 @@ export function useSettings() {
 }
 
 /** Shallow helper for updating one section. */
-export function section<K extends keyof Settings>(key: K, patch: Partial<Settings[K]>) {
+export function section<K extends Exclude<keyof Settings, "version">>(key: K, patch: Partial<Settings[K]>) {
   return (s: Settings): Settings => ({ ...s, [key]: { ...s[key], ...patch } });
 }

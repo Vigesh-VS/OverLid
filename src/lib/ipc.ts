@@ -43,6 +43,8 @@ export type IslandPosition = "center" | "left" | "right";
 export type VisibilityMode = "alwaysOnTop" | "selectedApps" | "normal";
 
 export interface Settings {
+  /** Settings schema version (set by Rust). */
+  version: number;
   general: {
     position: IslandPosition;
     offsetX: number;

@@ -10,6 +10,8 @@ use tauri_plugin_store::StoreExt;
 pub const CHANGED_EVENT: &str = "settings://changed";
 const STORE_FILE: &str = "settings.json";
 const STORE_KEY: &str = "settings";
+/// Bump when the settings shape changes in a way that needs migrating.
+pub const SETTINGS_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -380,6 +382,8 @@ impl Default for QuickAction {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
+    /// Schema version, so older or hand-edited files can be migrated safely.
+    pub version: u32,
     pub general: General,
     pub peeks: Peeks,
     pub focus: Focus,
@@ -391,6 +395,14 @@ pub struct Settings {
 impl Settings {
     /// Clamp everything into ranges the rest of the app can rely on.
     fn sanitized(mut self) -> Self {
+        self.version = SETTINGS_VERSION;
+        let q = &mut self.quick_action;
+        q.payload = q.payload.chars().filter(|c| !c.is_control()).take(2048).collect();
+        q.tooltip = q.tooltip.chars().filter(|c| !c.is_control()).take(120).collect();
+        // Only a small PNG data URL Overlid made itself.
+        if q.icon_data.as_ref().is_some_and(|d| !d.starts_with("data:image/png;base64,") || d.len() > 256 * 1024) {
+            q.icon_data = None;
+        }
         let g = &mut self.general;
         g.offset_x = g.offset_x.clamp(-600, 600);
         g.ui_scale = (g.ui_scale.clamp(0.75, 1.5) * 20.0).round() / 20.0;
