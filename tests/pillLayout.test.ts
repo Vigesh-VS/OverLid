@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { PILL, lockWidth, notifyWidth, pillSlots, pillWidth, sideColumn, type PillInputs } from "../src/island/compact/pillLayout.ts";
+import { PILL, lockWidth, notifyWidth, pillGeometry, pillSlots, pillWidth, sideColumn, type PillInputs } from "../src/island/compact/pillLayout.ts";
 
 const idle: PillInputs = {
   mediaPlaying: false,
@@ -87,4 +87,23 @@ test("a lock-key label only grows the pill when it's wider than the time", () =>
   assert.equal(pillWidth(slots, Math.max(PILL.timeWidth12h, narrow)), pillWidth(slots, PILL.timeWidth12h));
   const wide = lockWidth("Caps Lock off");
   assert.ok(pillWidth(slots, Math.max(PILL.timeWidth, wide)) > pillWidth(slots, PILL.timeWidth));
+});
+
+test("a notification on a time-only pill splits it: time left, notification right", () => {
+  const w = notifyWidth("Done");
+  const g = pillGeometry(pillSlots({ ...idle, notify: w }), PILL.timeWidth12h);
+  assert.equal(g.split, true);
+  assert.equal(g.width, PILL.padding + PILL.timeWidth12h + PILL.gap + w + PILL.padding);
+  assert.ok(g.timeShift < 0, "time moves left of centre");
+  // The notification starts right after the time.
+  assert.equal(g.notifyFromCentre, g.timeShift + PILL.timeWidth12h / 2 + PILL.gap);
+  // When it goes, the time is centred again.
+  const back = pillGeometry(pillSlots(idle), PILL.timeWidth12h);
+  assert.deepEqual([back.split, back.timeShift], [false, 0]);
+});
+
+test("with media playing, a notification keeps the centred 3-column layout", () => {
+  const g = pillGeometry(pillSlots({ ...idle, mediaPlaying: true, notify: notifyWidth("Done") }));
+  assert.equal(g.split, false);
+  assert.equal(g.timeShift, 0);
 });

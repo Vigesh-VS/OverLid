@@ -114,3 +114,31 @@ export function pillWidth(slots: PillSlots, centre: number = PILL.timeWidth, gap
   const width = centre + 2 * PILL.padding + (side > 0 ? 2 * (side + gap) : 2 * PILL.idlePadding);
   return Math.max(PILL.minWidth, width);
 }
+
+export interface PillGeometry {
+  width: number;
+  /**
+   * Two-part layout: [time] [notification]. Used when a notification arrives
+   * while the pill shows only the time, like a Dynamic Island splitting.
+   */
+  split: boolean;
+  /** Horizontal shift of the time from the pill's centre (negative = left). */
+  timeShift: number;
+  /** Left edge of the notification, measured from the pill's centre. */
+  notifyFromCentre: number;
+}
+
+/** Full geometry: width plus where the time and notification sit. */
+export function pillGeometry(slots: PillSlots, centre: number = PILL.timeWidth, gap: number = PILL.gap): PillGeometry {
+  const split = slots.left.length === 0 && slots.right.length === 1 && slots.right[0] === "notify";
+  if (!split) {
+    return { width: pillWidth(slots, centre, gap), split, timeShift: 0, notifyFromCentre: centre / 2 + gap };
+  }
+  const width = Math.max(PILL.minWidth, PILL.padding + centre + gap + slots.notifyWidth + PILL.padding);
+  return {
+    width,
+    split,
+    timeShift: PILL.padding + centre / 2 - width / 2,
+    notifyFromCentre: PILL.padding + centre + gap - width / 2,
+  };
+}

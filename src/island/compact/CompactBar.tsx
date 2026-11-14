@@ -22,7 +22,7 @@ import {
   lockWidth,
   notifyWidth,
   pillSlots,
-  pillWidth,
+  pillGeometry,
   sideColumn,
   slotWidth,
   type PillSlots,
@@ -61,6 +61,10 @@ interface PillModel {
   /** Width of the centre column: the time, or a wider lock-key label. */
   centre: number;
   width: number;
+  /** Time on the left, notification on the right (see pillGeometry). */
+  split: boolean;
+  timeShift: number;
+  notifyFromCentre: number;
 }
 
 /** What the collapsed pill shows right now. Shared by the island (width) and the bar (content). */
@@ -92,7 +96,8 @@ export function usePill(): PillModel {
   });
   // The pill only grows for a lock label if it's wider than the time.
   const centre = Math.max(TIME_WIDTH, lock ? lockWidth(lock) : 0);
-  return { slots, side: sideColumn(slots, GAP), centre, width: pillWidth(slots, centre, GAP) };
+  const g = pillGeometry(slots, centre, GAP);
+  return { slots, side: sideColumn(slots, GAP), centre, ...g };
 }
 
 /**
@@ -101,7 +106,7 @@ export function usePill(): PillModel {
  * time is always exactly centred.
  */
 export function CompactBar() {
-  const { slots, side, centre } = usePill();
+  const { slots, side, centre, split, timeShift, notifyFromCentre } = usePill();
   const media = useMedia((s) => s.media);
   const accent = useMedia((s) => s.accent);
   const usage = useCode((s) => s.usage);
@@ -220,8 +225,15 @@ export function CompactBar() {
       style={{ "--accent": accent } as CSSProperties}
       onPointerOver={(e) => setOverIndicator(!!(e.target as HTMLElement).closest("[data-indicator]"))}
     >
-      {side > 0 && column(slots.left, "left")}
-      <div className={styles.centre} style={{ width: centre }}>
+      {!split && side > 0 && column(slots.left, "left")}
+      {/* The time glides left when a notification splits the pill, and back. */}
+      <motion.div
+        className={styles.centre}
+        style={{ width: centre, marginLeft: -centre / 2 }}
+        initial={false}
+        animate={{ x: timeShift }}
+        transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
+      >
         <AnimatePresence initial={false} mode="popLayout">
           {lock ? (
             <motion.span key={`lock-${lock.kind}-${lock.badge ?? ""}`} className={styles.lock} role="status" aria-live="polite" {...fade}>
@@ -234,8 +246,22 @@ export function CompactBar() {
             </motion.span>
           )}
         </AnimatePresence>
-      </div>
-      {side > 0 && column(slots.right, "right")}
+      </motion.div>
+      {!split && side > 0 && column(slots.right, "right")}
+      <AnimatePresence initial={false}>
+        {split && notification && peek && (
+          <motion.div
+            key={`split-${peek.kind}-${peek.title}-${peek.badge ?? ""}`}
+            className={styles.splitNotify}
+            style={{ left: `calc(50% + ${notifyFromCentre}px)`, width: slots.notifyWidth }}
+            initial={reduceMotion ? false : { opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0, transition: { delay: reduceMotion ? 0 : 0.08, type: "spring", stiffness: 420, damping: 30 } }}
+            exit={{ opacity: 0, x: 18, transition: { duration: 0.14 } }}
+          >
+            {render("notify")}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
