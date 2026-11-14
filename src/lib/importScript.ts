@@ -1,6 +1,13 @@
 // Turns .txt, .md, .docx and .pdf files into teleprompter scripts.
 // Text only: paragraphs are kept, headings become "## " sections.
 // Heavy parsers load on demand so they never slow down the island.
+// Every file goes through importGuard first: real type by magic bytes,
+// size caps, and a zip-bomb scan before a .docx is unpacked.
+
+import { ImportError, LIMITS, capText, checkZip, decodeText, extension, sniff } from "./importGuard";
+import type { DocxResponse } from "./docxWorker";
+
+export { ImportError };
 
 export interface ImportedScript {
   title: string;
@@ -9,15 +16,7 @@ export interface ImportedScript {
   notes: string[];
 }
 
-export class ImportError extends Error {}
-
 export const IMPORT_ACCEPT = ".txt,.md,.markdown,.docx,.pdf";
-const MAX_BYTES = 40 * 1024 * 1024;
-
-function extension(name: string): string {
-  return name.toLowerCase().split(".").pop() ?? "";
-}
-
 function titleFrom(name: string): string {
   return name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Imported script";
 }
@@ -38,11 +37,36 @@ function fromMarkdown(text: string): string {
   return text.replace(/^\s{0,3}#{1,6}\s+(.*)$/gm, "## $1");
 }
 
+/** Convert a .docx to HTML in a worker that's killed if it runs too long. */
+function docxToHtml(buffer: ArrayBuffer): Promise<{ html: string; warnings: boolean }> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./docxWorker.ts", import.meta.url), { type: "module" });
+    const unreadable = new ImportError("This Word file couldn't be read. Save it as .docx again and retry.");
+    const timer = window.setTimeout(() => {
+      worker.terminate();
+      reject(new ImportError("This Word file took too long to read, so it was skipped."));
+    }, LIMITS.docxMs);
+    worker.onmessage = (e: MessageEvent<DocxResponse>) => {
+      window.clearTimeout(timer);
+      worker.terminate();
+      if (e.data.ok) resolve({ html: e.data.html, warnings: e.data.warnings });
+      else reject(unreadable);
+    };
+    worker.onerror = () => {
+      window.clearTimeout(timer);
+      worker.terminate();
+      reject(unreadable);
+    };
+    worker.postMessage({ buffer }, [buffer]);
+  });
+}
+
 async function fromDocx(buffer: ArrayBuffer, notes: string[]): Promise<string> {
-  const mammoth = (await import("mammoth/mammoth.browser.min.js")).default;
-  const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
-  if (result.messages.some((m) => m.type === "warning")) notes.push("Some Word formatting was simplified.");
-  const doc = new DOMParser().parseFromString(result.value, "text/html");
+  checkZip(new Uint8Array(buffer));
+  const result = await docxToHtml(buffer);
+  if (result.warnings) notes.push("Some Word formatting was simplified.");
+  // An inert document: nothing in it runs or loads.
+  const doc = new DOMParser().parseFromString(result.html, "text/html");
   const out: string[] = [];
   let images = false;
   doc.body.querySelectorAll("h1, h2, h3, h4, h5, h6, p, li").forEach((el) => {
@@ -71,14 +95,25 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
 
   let pdf;
   try {
-    pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false }).promise;
+    pdf = await pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      isEvalSupported: false,
+      disableFontFace: true,
+      enableXfa: false,
+    }).promise;
   } catch (e) {
     const msg = String(e);
     if (/password/i.test(msg)) throw new ImportError("This PDF is password-protected. Remove the password and try again.");
     throw new ImportError("This PDF couldn't be read. It may be damaged.");
   }
 
+  if (pdf.numPages > LIMITS.pdfPages) {
+    await pdf.destroy();
+    throw new ImportError(`This PDF has more than ${LIMITS.pdfPages} pages, which is too long for a script.`);
+  }
+
   const paragraphs: string[] = [];
+  let chars = 0;
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
     const content = await page.getTextContent();
@@ -100,6 +135,7 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
     const flush = () => {
       const text = current.join(" ").replace(/\s+/g, " ").trim();
       if (text) paragraphs.push(text);
+      chars += text.length;
       current = [];
     };
     lines.forEach((line, i) => {
@@ -110,6 +146,10 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
     });
     flush();
     page.cleanup();
+    if (chars > LIMITS.textChars) {
+      await pdf.destroy();
+      throw new ImportError("That file has too much text for a script (over 2 MB).");
+    }
   }
   await pdf.destroy();
   return paragraphs.join("\n\n");
@@ -117,19 +157,16 @@ async function fromPdf(buffer: ArrayBuffer): Promise<string> {
 
 export async function importFile(file: File): Promise<ImportedScript> {
   const ext = extension(file.name);
-  if (!["txt", "md", "markdown", "docx", "pdf"].includes(ext)) {
-    throw new ImportError("That file type isn't supported. Use .txt, .md, .docx or .pdf.");
-  }
-  if (file.size === 0) throw new ImportError("That file is empty.");
-  if (file.size > MAX_BYTES) throw new ImportError("That file is too large to import (over 40 MB).");
+  const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  const kind = sniff(file.name, file.size, head);
 
   const notes: string[] = [];
   let body: string;
   try {
-    if (ext === "docx") body = await fromDocx(await file.arrayBuffer(), notes);
-    else if (ext === "pdf") body = await fromPdf(await file.arrayBuffer());
+    if (kind === "docx") body = await fromDocx(await file.arrayBuffer(), notes);
+    else if (kind === "pdf") body = await fromPdf(await file.arrayBuffer());
     else {
-      const text = await file.text();
+      const text = decodeText(new Uint8Array(await file.arrayBuffer()));
       body = ext === "txt" ? text : fromMarkdown(text);
     }
   } catch (e) {
@@ -140,7 +177,7 @@ export async function importFile(file: File): Promise<ImportedScript> {
     );
   }
 
-  body = tidy(body);
+  body = capText(tidy(body));
   if (body.replace(/^## .*$/gm, "").trim().length < 20) {
     throw new ImportError(
       ext === "pdf"
