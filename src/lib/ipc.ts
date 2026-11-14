@@ -364,6 +364,7 @@ export const commands = {
   /** Room the island content needs (logical px); the window grows to fit. 0,0 = default. */
   islandSetExtent: (width: number, height: number) => invoke<void>("island_set_extent", { width, height }),
   islandFlags: () => invoke<IslandFlags>("island_flags"),
+  peekTest: (kind: "agentDone" | "agentWaiting" | "charging" | "usage" | "capsLock") => invoke<void>("peek_test", { kind }),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
 
   openSettings: () => invoke<void>("open_settings_window"),

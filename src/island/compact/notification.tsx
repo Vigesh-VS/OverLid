@@ -30,7 +30,7 @@ export function toNotification(peek: Peek): Notification {
       const on = (peek.badge ?? "").toLowerCase() === "on";
       return {
         icon: <KeyUpIcon size={15} />,
-        label: `${peek.kind === "capsLock" ? "Caps" : "Num"} ${on ? "on" : "off"}`,
+        label: `${peek.kind === "capsLock" ? "Caps Lock" : "Num Lock"} ${on ? "on" : "off"}`,
         color: on ? "var(--ol-text)" : "var(--ol-text-2)",
         title,
       };

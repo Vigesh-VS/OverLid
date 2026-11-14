@@ -110,3 +110,24 @@ pub fn notify(app: &AppHandle, kind: PeekKind, title: &str, body: &str) {
         log::warn!("notification failed: {e}");
     }
 }
+
+/// Settings › General › "Try it": show a sample notification so you can see
+/// how each kind looks. Always shown, whatever the per-type switches say.
+#[tauri::command]
+pub fn peek_test(app: AppHandle, kind: String) -> Result<(), String> {
+    let peek = match kind.as_str() {
+        "agentDone" => Peek::new(PeekKind::AgentDone, Tone::Good, "overlid finished")
+            .subtitle("Claude Code · ran 1m 12s")
+            .with_sound(),
+        "agentWaiting" => Peek::new(PeekKind::AgentWaiting, Tone::Warn, "overlid needs you")
+            .subtitle("Claude is asking: what day is it?")
+            .with_sound(),
+        "charging" => Peek::new(PeekKind::Charging, Tone::Good, "Charging").badge("64%").value(0.64),
+        "usage" => Peek::new(PeekKind::Usage, Tone::Warn, "Claude Code 5-hour at 80 %")
+            .subtitle("Resets in 1h 12m")
+            .value(0.8),
+        "capsLock" => Peek::new(PeekKind::CapsLock, Tone::Neutral, "Caps Lock").badge("On"),
+        other => return Err(format!("unknown sample {other}")),
+    };
+    app.emit(PEEK_EVENT, peek).map_err(|e| e.to_string())
+}

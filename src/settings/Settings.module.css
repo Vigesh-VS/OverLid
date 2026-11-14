@@ -763,3 +763,10 @@
   border-radius: 5px;
   background: var(--ol-surface-raised);
 }
+
+.tryRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}

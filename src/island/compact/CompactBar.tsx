@@ -43,7 +43,7 @@ const isLockKey = (peek: Peek | null) => peek?.kind === "capsLock" || peek?.kind
 
 function lockLabel(peek: Peek): string {
   const on = (peek.badge ?? "").toLowerCase() === "on";
-  return `${peek.kind === "capsLock" ? "Caps" : "Num"} ${on ? "on" : "off"}`;
+  return `${peek.kind === "capsLock" ? "Caps Lock" : "Num Lock"} ${on ? "on" : "off"}`;
 }
 
 /** The AI tool the pill should represent: the one you're using, else the primary. */

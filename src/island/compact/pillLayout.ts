@@ -25,6 +25,8 @@ export const PILL = {
   /** Gap between columns and between items in a column (--ol-pill-slot-gap). */
   gap: 12,
   padding: 14,
+  /** Extra room either side when the pill shows only the time. */
+  idlePadding: 24,
   minWidth: 96,
 };
 
@@ -108,6 +110,7 @@ export function lockWidth(label: string): number {
  */
 export function pillWidth(slots: PillSlots, centre: number = PILL.timeWidth, gap: number = PILL.gap): number {
   const side = sideColumn(slots, gap);
-  const width = centre + 2 * PILL.padding + (side > 0 ? 2 * (side + gap) : 0);
+  // Time only: give it breathing room so the pill isn't hugging the digits.
+  const width = centre + 2 * PILL.padding + (side > 0 ? 2 * (side + gap) : 2 * PILL.idlePadding);
   return Math.max(PILL.minWidth, width);
 }

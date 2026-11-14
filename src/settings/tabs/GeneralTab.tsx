@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { commands, type CaptureMode, type IslandPosition } from "../../lib/ipc";
-import { Choice, Group, Slider, Toggle } from "../controls";
+import { Choice, Group, Row, Slider, Toggle } from "../controls";
+import styles from "../Settings.module.css";
 import { section, useSettingsStore } from "../useSettings";
 
 const POSITIONS: ReadonlyArray<{ value: IslandPosition; label: string }> = [
@@ -96,6 +97,22 @@ export function GeneralTab() {
           checked={peeks.focus}
           onChange={(v) => update(section("peeks", { focus: v }))}
         />
+        <Row label="Try it" hint="Shows a sample in the island so you can see how notifications look.">
+          <div className={styles.tryRow}>
+            <button type="button" className={styles.button} onClick={() => void commands.peekTest("agentWaiting")}>
+              Claude needs you
+            </button>
+            <button type="button" className={styles.button} onClick={() => void commands.peekTest("agentDone")}>
+              Claude finished
+            </button>
+            <button type="button" className={styles.button} onClick={() => void commands.peekTest("charging")}>
+              Charging
+            </button>
+            <button type="button" className={styles.button} onClick={() => void commands.peekTest("capsLock")}>
+              Caps Lock
+            </button>
+          </div>
+        </Row>
         <Toggle
           label="Play a sound"
           hint="A soft chime with agent, timer and limit peeks."

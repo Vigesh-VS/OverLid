@@ -17,7 +17,7 @@ const idle: PillInputs = {
 test("default pill shows only the time", () => {
   const slots = pillSlots(idle);
   assert.deepEqual(slots, { left: [], right: [], notifyWidth: 0 });
-  assert.equal(pillWidth(slots), Math.max(PILL.minWidth, PILL.timeWidth + 2 * PILL.padding));
+  assert.equal(pillWidth(slots), Math.max(PILL.minWidth, PILL.timeWidth + 2 * PILL.padding + 2 * PILL.idlePadding));
 });
 
 test("media playing: art left, bars right, nothing else", () => {
@@ -63,7 +63,7 @@ test("a notification widens the pill and sits on the far right, then the pill sh
 test("a 12-hour clock gets room for am/pm", () => {
   const slots = pillSlots(idle);
   assert.ok(pillWidth(slots, PILL.timeWidth12h) > pillWidth(slots, PILL.timeWidth));
-  assert.ok(pillWidth(slots, PILL.timeWidth12h) >= PILL.timeWidth12h + 2 * PILL.padding);
+  assert.ok(pillWidth(slots, PILL.timeWidth12h) >= PILL.timeWidth12h + 2 * PILL.padding + 2 * PILL.idlePadding);
 });
 
 test("3-column grid: both side columns equal the wider side", () => {
@@ -85,6 +85,6 @@ test("a lock-key label only grows the pill when it's wider than the time", () =>
   const slots = pillSlots(idle);
   const narrow = 30;
   assert.equal(pillWidth(slots, Math.max(PILL.timeWidth12h, narrow)), pillWidth(slots, PILL.timeWidth12h));
-  const wide = lockWidth("Caps off");
+  const wide = lockWidth("Caps Lock off");
   assert.ok(pillWidth(slots, Math.max(PILL.timeWidth, wide)) > pillWidth(slots, PILL.timeWidth));
 });
