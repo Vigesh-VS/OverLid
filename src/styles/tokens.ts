@@ -54,7 +54,7 @@ export function readIslandTokens(): IslandTokens {
       },
     },
     expanded: {
-      width: readNumber("--ol-expanded-w", 680),
+      width: readNumber("--ol-expanded-w", 640),
       heights: {
         home: readNumber("--ol-panel-h-home", 280),
         media: readNumber("--ol-panel-h-media", 210),

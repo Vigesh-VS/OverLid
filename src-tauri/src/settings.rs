@@ -96,7 +96,7 @@ impl Default for General {
             visibility: Visibility::AlwaysOnTop,
             selected_apps: Vec::new(),
             ui_scale: 1.0,
-            expanded_width: 680,
+            expanded_width: 640,
             pill_height: 34,
             close_delay_ms: 400,
             indicators: Indicators::default(),

@@ -64,7 +64,7 @@
   --ol-prompter-chrome: 100px;
 
   /* Expanded island */
-  --ol-expanded-w: 680px;
+  --ol-expanded-w: 640px;
   /* Expanded height per panel before it has been measured. Once a panel has
      rendered, the island grows to fit its content exactly. */
   --ol-panel-h-home: 280px;
