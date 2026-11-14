@@ -1,6 +1,6 @@
 # Overlid security audit
 
-Audit of v0.2.0 against `SECURITY_HARDENING.md`. **Before** is the state found at the start of the hardening round; **After** is the state after the hardening commits. ⚠️ in the After column is explained under the table.
+Audit of v0.2.0 against the project's security hardening checklist. **Before** is the state found at the start of the hardening round; **After** is the state after the hardening commits. ⚠️ in the After column is explained under the table.
 
 ✅ done · ⚠️ partly · ❌ missing · — not applicable
 

@@ -5,7 +5,7 @@ Thanks for helping. Bug reports, ideas and pull requests are all welcome.
 ## Before you start
 
 - For anything bigger than a small fix, open an issue first so we can agree on the approach.
-- Read [SPEC.md](SPEC.md). It describes the architecture and what's in and out of scope for v1.
+- Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). It explains how Overlid is built and the rules each module follows.
 
 ## Setup
 
@@ -27,6 +27,7 @@ Run these before opening a pull request; CI runs them too.
 ```powershell
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
 cargo test --manifest-path src-tauri/Cargo.toml
+npm test
 npm run build
 ```
 

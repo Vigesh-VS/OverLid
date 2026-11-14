@@ -1,5 +1,4 @@
-/* Overlid design tokens. Re-theme the whole island from here.
-   Source: design/mockups/*.dc.html */
+/* Overlid design tokens. Re-theme the whole island from here. */
 :root {
   /* Global island scale (Settings › General › Size). Everything in the island
      is drawn at this zoom, so text, icons, rings, radii and the hit rect all

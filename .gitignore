@@ -13,8 +13,7 @@ dist-ssr
 *.local
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea
 .DS_Store
 *.suo
@@ -23,8 +22,26 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local installer builds
+# Build output and installers (installers belong in GitHub Releases only)
 /release/
+target/
+*.exe
+*.msi
+*.msix
+*.nsis.zip
+
+# OS junk
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Local planning and design notes (kept on the maintainer's PC only)
+/_planning/
+/design/
+/CLAUDE.md
+/CLAUDE.local.md
+/SPEC.md
 
 # Secrets: never commit these
 .env
