@@ -28,7 +28,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 anyhow = "1"
 thiserror = "2"
 log = "0.4"
-sysinfo = { version = "0.37", default-features = false, features = ["system", "disk"] }
+sysinfo = { version = "0.40", default-features = false, features = ["system", "disk"] }
 cpal = "0.16"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 chrono = { version = "0.4", features = ["serde"] }
